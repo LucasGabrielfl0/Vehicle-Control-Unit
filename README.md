@@ -14,7 +14,7 @@ CAN_2.h
 
 Electronic Differential has methods calculate the angular speed of each wheel
 ```
-Electronic_Diferrential.h
+Electronic_Differential.h
 ```
 
 VCU_Sensors class has methods to get and validate data from sensors (APPS, BSE, Steering Wheel) 
