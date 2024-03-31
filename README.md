@@ -5,16 +5,11 @@ Integration of the VCU: the car's safety sensors(APPS, BSE, ...), the Eletronic 
 
 ### Prerequisites
 
-To decrease the complexity of the code and improve it's safety, we've created 3 Header files with all the methods used:
+To decrease the complexity of the code and improve it's safety, 2 Header files were created:
 
 CAN 2.0 has methods to get and send data to both Inverters  
 ```
 CAN_2.h 
-```
-
-Electronic Differential has methods calculate the angular speed of each wheel
-```
-Electronic_Differential.h
 ```
 
 Angle Sensors class has methods to get and validate data from Pedals and angle related sensors (APPS, BSE, Steering Wheel) 
