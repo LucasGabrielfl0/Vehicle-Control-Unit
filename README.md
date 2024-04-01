@@ -1,18 +1,18 @@
 # Integrated-VCU
-Integration of the VCU: the car's safety sensors(APPS, BSE, ...), the Eletronic differential and CAN 2.0
+Integration of the VCU, the car's safety sensors(APPS, BSE, ...), the Electronic differential and CAN 2.0
 
 ## Getting Started!
 
 ### Prerequisites
 
-To decrease the complexity of the code and improve it's safety, 2 Header files were created:
+To decrease the complexity of the main code and improve it's safety, 2 Header files were created:
 
-CAN 2.0 has methods to get and send data to both Inverters  
+motor_can has methods to send/receive data from the motor controllers  
 ```
-CAN_2.h 
+motor_can.h 
 ```
 
 Angle Sensors class has methods to get and validate data from Pedals and angle related sensors (APPS, BSE, Steering Wheel) 
 ```
-Angle_Sensors.h
+angle_sensors.h
 ```
