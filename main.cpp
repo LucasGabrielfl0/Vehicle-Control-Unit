@@ -6,8 +6,7 @@
 
 #include "mbed.h"
 #include "MPU9250.h"
-#include "Angle_Sensor.h"
-#include "can_inverter.h"
+#include "angle_sensor.h"
 #include "time.h"
 #include "CAN.h"
 #include <cstdint>
@@ -22,8 +21,6 @@
 
 //InterruptIn Velocidade_in(PA_4, PullNone); //(PA_4, PullNone)
 //CAN can1(PD_0,PD_1,500e3);     // Velocidade 1
-//class CAN_2 can1(PD_0,PD_1,500e3);
-can_inverter can1(PD_0,PD_1,500e3);
 
 /*===================================== VCU Sensors Initialization =====================================*/
 BSE_Sensor BSE_1 (BSE_in);
