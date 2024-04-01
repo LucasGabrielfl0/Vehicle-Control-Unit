@@ -2,10 +2,10 @@
  * Capibarib E-racing
  * Federal University of Pernambuco (UFPE)
  * Group Area: Powertrain
- * This file is part of the car's embedded system's communication
- * it contains the necessary methods communicate with Plettenberg motor controllers (MST)
- * Using CAN 2.0 protocol as described in it's datasheet
 
+ * This file contains methods used for the car's embedded system's communication
+ * The datafield follows the standard for CAN 2.0 communication as described in the
+ * Plettenberg documentation (for MST motor controllers)
  ***/
 #ifndef _MOTOR_CAN_H_
 #define _MOTOR_CAN_H_
@@ -32,25 +32,26 @@
 #define SENSOR_MAX_OFFSET_5V 65535
 
 /*================================== Receive Struct ==================================*/
-struct Receveid_data{
+struct Read_Datafield{
     //Data receive from the motor controller (In order)
-    uint8_t     Msg_Counter;        //[0]
-    uint16_t    Input_Voltage;      //[1]
-    uint8_t     Temp_Controller;
-    uint8_t     Temp_motor;
-    uint16_t    rx_PWM;
-    uint8_t     Current;
+    uint8_t     Msg_Counter{0};        //[0]
+    float       Input_Voltage{0};      //[1]
+    uint8_t     Temp_Controller{0};
+    uint8_t     Temp_motor{0};
+    uint16_t    RPM{0};
+    uint16_t    rx_PWM{0};
+    uint8_t     Current{0};
 };
 
 /*================================== Send Struct ==================================*/
-struct Send_Data{
+struct Write_Datafield{
     //Data receive from the motor controller (In order)
-    uint16_t    RPM_Limit;
+    uint16_t    RPM_Limit{0};
     //motor pole pair is a constant
-    uint16_t    Tx_PWM;
-    uint16_t    Current_Limit;
-    bool        isBreak;    //1= break, 0= Throttle
-    bool        isReverse; //1= Reverse, 0= Forward
+    uint16_t    Tx_PWM{0};
+    uint16_t    Current_Limit{0};
+    bool        isBreak{0};    //1= break, 0= Throttle
+    bool        isReverse{0}; //1= Reverse, 0= Forward
 };
 
 
@@ -70,8 +71,8 @@ class motor_can:public CAN{
     void send_to_inverter(uint16_t rpm_1, uint16_t Angle_1, uint16_t current_1 );
     void send_to_inverter_2(uint16_t rpm_2, uint16_t Angle_2, uint16_t current_2 );
     // Receive data from both motor controllers
-    void receive_from_inverter();
-    void receive_from_inverter_2();
+    Read_Datafield receive_from_inverter();
+    Read_Datafield receive_from_inverter_2();
 
     //Constructors
     public:
@@ -145,6 +146,43 @@ inline void motor_can:: send_to_inverter_2(uint16_t rpm_2, uint16_t Angle_2, uin
 }
 
 
+inline Read_Datafield motor_can:: receive_from_inverter() {
+    //Definir mensagem CAN a ser recebida
+    Read_Datafield Datafield;
 
+    //Aux variables
+    int Voltage_Hb; //voltage High byte
+    int Voltage_int;
+
+    CANMessage inverter_rx_msg;
+    inverter_rx_msg.len = 8;
+    if(is_can_active()) {
+        if(read(inverter_rx_msg)){
+        // Aguardar a recepção da mensagem do inversor
+            if(inverter_rx_msg.id == INVERSOR_RX_ID) {
+                Datafield.Msg_Counter = inverter_rx_msg.data[0] & 0xF;
+                
+                Voltage_Hb = inverter_rx_msg.data[0] >> 4;
+                Voltage_int = (Voltage_Hb<<8) | inverter_rx_msg.data[1];
+                Datafield.Input_Voltage = Voltage_int/10.0f;
+
+                Datafield.Temp_Controller = inverter_rx_msg.data[2]-100; //Range[0-255],Temp Range [-100°C to 155°C]
+                Datafield.Temp_motor = inverter_rx_msg.data[3]-100; //Range[0-255],Temp Range [-100°C to 155°C]
+                
+                Datafield.RPM= (inverter_rx_msg.data[5]<< 8) | inverter_rx_msg.data[4] ;
+                
+                Datafield.rx_PWM=(inverter_rx_msg.data[6]/255.0f)*100;
+                Datafield.Current = inverter_rx_msg.data[7];            
+            
+            }
+        }
+    }
+    else{
+        printf("Fail to stablish CAN connection. Reseting...\n");
+        reset_can(); 
+    }
+
+   return Datafield;
+   }
 
 #endif
