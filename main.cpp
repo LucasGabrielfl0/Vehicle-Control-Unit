@@ -22,8 +22,7 @@
 #define APPS_PIN_OUT            PA_5
 
 
-
-//Objects
+/*===================================== Objetcs =====================================*/
 //Communication
 motor_can can1(PA_11, PA_12, 1e6);
 
@@ -35,21 +34,20 @@ Steering_Wheel_Sensor Steering_sensor (Steering_WHEEL_PIN);
 
 int main()
 {
+    /*================================== INITIALIZATION ==================================*/
     can1.set_CAN();
 
     //Constant Variables
     const uint16_t Current_inv1{39}, Current_inv2{30};
     const uint16_t RPM_inv1{9000}, RPM_inv2{9000};
-    uint16_t Wref_1{0},Wref_2{0};
     float BSE_dg{0} ,Steering_dg{0};
     
     //Structs
-    Read_Datafield Inv1_data, Inv2_data;
+    RxDatafield_struct Inv1_data, Inv2_data;
     APPS_struct APPS_dg;
     Wref_struct W_ref;
 
-
-/*================================== LOOP ==================================*/
+    /*================================== LOOP ==================================*/
     while (true) {
         //Read all Sensors connected to the VCU
         APPS_dg= APPS.read_APPS();
