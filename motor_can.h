@@ -60,6 +60,8 @@ struct Write_Datafield{
 class motor_can:public CAN{
 
    // private:
+    Read_Datafield Datafield_inv1;
+    Read_Datafield Datafield_inv2;
 
     //Methods
     public:
@@ -73,7 +75,9 @@ class motor_can:public CAN{
     // Receive data from both motor controllers
     Read_Datafield receive_from_inverter();
     Read_Datafield receive_from_inverter_2();
-
+    //print received data
+    void Print_Datafields();
+    void Print_Datafield(int Num, Read_Datafield Inv);
     //Constructors
     public:
     motor_can(PinName _can_pin_rx, PinName _can_pin_tx, uint32_t _can_frequency);
@@ -83,7 +87,6 @@ class motor_can:public CAN{
 /*================================== Constructors ==================================*/
 inline motor_can::motor_can(PinName _can_pin_rx, PinName _can_pin_tx, uint32_t _can_frequency)
 :CAN(_can_pin_rx,_can_pin_tx, _can_frequency) {}
-
 /*================================== METHODS ==================================*/
 inline void motor_can:: set_CAN(){
     mode(CAN::Normal);
@@ -181,8 +184,24 @@ inline Read_Datafield motor_can:: receive_from_inverter() {
         printf("Fail to stablish CAN connection. Reseting...\n");
         reset_can(); 
     }
+    
+    Datafield_inv1 =Datafield;
+    return Datafield;
 
-   return Datafield;
    }
+
+
+inline void motor_can::Print_Datafields(){
+    Print_Datafield(1, Datafield_inv1);
+    Print_Datafield(2, Datafield_inv2);
+    
+}
+
+inline void Print_Datafield(int Num, Read_Datafield Inv){
+    printf("\r\n\t[CAN] Inverter %d: Volt=%.1f V, T_Ctrl= %d°C ,T_Motor = %d°C , RPM = %d, PWM = %d (%.2f %%), Ic= %d A",
+    Num, Inv.Input_Voltage ,Inv.Temp_Controller ,
+         Inv.Temp_motor    ,Inv.RPM ,
+         Inv.rx_PWM, (Inv.rx_PWM/255.0f)*100,Inv.Current );
+}
 
 #endif
