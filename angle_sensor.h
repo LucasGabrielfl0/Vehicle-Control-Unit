@@ -5,13 +5,14 @@
  
  * This file is part of the car's VCU (VEHICLE CONTROL UNIT)
  * it contains the APPS plausibilty check, BSE plausibility check
-
+ * as well the algorithm for the Electronic Differential
  ***/
 
 #ifndef _ANGLE_SENSOR_H_
 #define _ANGLE_SENSOR_H_
 
 #include "mbed.h"
+#include <cstdint>
 #include <time.h>
 
 /*================================== SENSORS PARAMETERS ==================================*/
@@ -36,17 +37,17 @@
 #define APPS_ang_max    120     //Maximum value for the Accelerator Pedal angle (Degrees)
 
 //Car's Physical parameters (For speed control)
-#define Radius_wheel    0.27    //Wheel's radius in Meters
-#define N_Disc_Wholes   3       //Number of wholes in the break's disc
+#define RADIUS_WHEEL    0.27    //Wheel's radius in Meters
+#define N_DISC_WHOLES   3       //Number of wholes in the break's disc
 
 
 //Error check
-#define Input_min 4500 //limite inferior do valor entrada para que não seja erro
-#define Input_max 48000 //limite superior do valor entrada para que não seja erro
+#define INPUT_MIN 4500 //max pi
+#define INPUT_MAX 48000 //limite superior do valor entrada para que não seja erro
 
 
-#define d_m     1 //Car's track Width [Bitola] in meters
-#define A_m     1 //Car's Wheelbase in meters 
+#define D_TW     1 //Car's track Width [Bitola] in meters
+#define A_WB     1 //Car's Wheelbase in meters 
 #define PI      3.14159265358979323846
 
 
@@ -54,6 +55,16 @@
 double millis();
 double Differential();
 void Calibrate_ADC();
+
+struct APPS_struct{
+    float s1; //sensor 1 angle value
+    float s2; //sensor 2 angle value
+};
+
+struct Wref_struct{
+    float W1; //Win
+    float W2; //Wout
+};
 
 /*================================== CLASSES ==================================*/
 //class for Acelleration Pedal, break Pedal, and Steering wheel
@@ -74,6 +85,7 @@ class angle_sensor{
     float Map(long Variable, float in_min, float in_max, float out_min, float out_max); //Maps the Input voltage into the Angle
     bool Input_Error_Check();
  
+
     //Constructors:
     angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max);
 
@@ -94,10 +106,18 @@ class APP_Sensors{
     private:
     angle_sensor APPS1;
     angle_sensor APPS2;
-    AnalogIn APPS_out; 
-    
+    AnalogOut APPS_out;
+
+    float APPS1_Angle{0}; //angle value [degrees]
+    float APPS2_Angle{0}; //angle value [degrees]
+    //Error related Attributes
+    bool AppsError_flag{0}; //just a flag, within the 100ms rule
+    double Error_Start_Time{0}; //Time stamp when error started
+    bool ERROR_State{0}; //if there is actual error, 1= ERROR, 0= all good :) 
+
     public:
-    bool APPS_Error_check();
+    bool APPS_Error_check(); //1= ERROR, 0= all good :) 
+    APPS_struct read_APPS();
     float read_S1();
     float read_S2();
 
@@ -139,7 +159,11 @@ inline Steering_Wheel_Sensor::Steering_Wheel_Sensor(PinName adc_Pin)
 /*======================================== Methods ========================================*/
 //Maps the input voltage's range into the angle's range 
 inline float angle_sensor::Map (long Variable, float in_min, float in_max, float out_min, float out_max) {
+    //? not quite sure about that one 
+    in_min= (in_min/3.3)*65535;
+    in_max= (in_max/3.3)*65535;
     float Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    
     return Mapped_Variable;
 }
 
@@ -151,47 +175,55 @@ inline float angle_sensor:: read(){
 
 /*======================================== APPS ========================================*/
 inline float APP_Sensors:: read_S1(){
-    float Angle=APPS1.read();
-    return Angle;    
+    return APPS1.read();    
 }
 
 inline float APP_Sensors:: read_S2(){
-    float Angle=APPS2.read();
-    return Angle;    
+    return APPS2.read();    
 }
+
+inline APPS_struct APP_Sensors:: read_APPS(){
+    APPS_struct Apps_values;
+    
+    float Angle_S1=APPS1.read();
+    float Angle_S2=APPS2.read();
+    uint16_t max_Apps = uint16_t( max(Angle_S1,Angle_S2) );
+
+    //? REALLY not sure about that one:
+    if (APPS_Error_check() == 0){
+        APPS_out.write_u16(0);
+    } 
+    else {
+        APPS_out.write_u16(max_Apps);
+    }
+
+    Apps_values.s1=Angle_S1;
+    Apps_values.s2=Angle_S2;
+    
+    return Apps_values;
+}
+
 
 //Checks if there's a discepancy bigger than 10%, for longer than 100 ms
 inline bool APP_Sensors::APPS_Error_check(){
-    float Apps1_value=APPS1.read();
-    float Apps2_value=APPS2.read();
-    int cont;
-    int tempo;
-    bool isError{0};
-
-    if (abs(Apps1_value - Apps2_value) > (0.1 * max(Apps1_value, Apps2_value))){
-        
-        cont += 1;
-        if(cont == 1) {//Starts Counting
-            tempo = millis(); 
+    if ( abs(APPS1_Angle - APPS2_Angle) > (0.1 * max(APPS1_Angle, APPS2_Angle)) ){
+        if(AppsError_flag == 0) { //Starts Counting
+            Error_Start_Time = millis(); 
+            AppsError_flag = 1;
         }
 
-        if(millis() - tempo > 100) {
-            isError= 1;
+        if(millis() - Error_Start_Time > 100) { //if the error continues after 100ms
+            ERROR_State= 1;
+        } else{
+            ERROR_State= 0;
         }
-        else{
-            isError= 0;
+
+    } else { //if error ceased
+        AppsError_flag = 0;
+        ERROR_State= 0;
         }
-    }
 
-    if(isError==1){
-
-    }
-    else{
-
-    }
-
-
-    return isError;
+    return ERROR_State;
 }
 
 inline bool angle_sensor::Input_Error_Check(){
@@ -199,7 +231,7 @@ inline bool angle_sensor::Input_Error_Check(){
     float prevTime{0};
     bool isError{0};
 
-    if(Angle_Value < Input_min or Angle_Value > Input_max){
+    if(Angle_Value < INPUT_MIN or Angle_Value > INPUT_MAX){
         if(millis() - prevTime >= 100){
             prevTime =  millis();
             isError=1;
@@ -223,18 +255,39 @@ inline double millis(){
 }
 
 //Calculates angular speed of the inner and outter Wheels (W_in and W_out)
-inline double Differential(float Ack_deg, float Wv){
-    double Ack_rad=Ack_deg*PI/180; //Ackerman Angle, range [0 0.785] rad (0 to 45 Degrees)
-    float W_out,W_int;
-    float d_W, Tg_Ack;
+inline Wref_struct Differential(float Steering_dg, float Wv){    
+    float Ack_dg{0}, Ack_rad{0}; //Ackerman Angle, rad[0 0.785], Dg[0 45]
+    float W_out, W_in, d_W;
+    Wref_struct W_dif;
 
-    Tg_Ack=tan(Ack_rad);
-    d_W= abs(Wv*d_m*Tg_Ack/(2*A_m) );
+    if(abs(Steering_dg)>=0.04){
 
-    W_out= Wv+d_W;
-    W_int= Wv-d_W;
+    }
+    else{
+        Steering_dg=0;
+    }
 
-    return 1;
+    //Steering Wheel to Ackerman Angle
+    Ack_dg=0.1415*Steering_dg-0.092;
+    Ack_rad=Ack_dg*PI/180; //rad2deg
+    
+    //Ackerman Angle to angular speed (wheels)
+    d_W= Wv*D_TW*tan(Ack_rad)/(2*A_WB);
+
+
+    if(Wv<d_W){ //?
+        W_out= Wv+d_W;
+        W_in= Wv-d_W;
+    }
+    else{
+        W_out= Wv+d_W;
+        W_in= Wv-d_W;
+    }
+
+    W_dif.W1=W_in;
+    W_dif.W2=W_out;
+    
+    return W_dif;
 }
 
 inline void Calibrate_ADC(){
