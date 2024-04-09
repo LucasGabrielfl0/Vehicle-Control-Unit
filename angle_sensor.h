@@ -5,7 +5,7 @@
  
  * This file is part of the car's VCU (VEHICLE CONTROL UNIT)
  * it contains the APPS plausibilty check, BSE plausibility check
- * as well the algorithm for the Electronic Differential
+ * as well the methods to read and map all the angle related sensors
  ***/
 
 #ifndef _ANGLE_SENSOR_H_
@@ -41,9 +41,9 @@
 #define N_DISC_WHOLES   3       //Number of wholes in the break's disc
 
 
-//Error check
-#define INPUT_MIN 4500 //max pi
-#define INPUT_MAX 48000 //limite superior do valor entrada para que não seja erro
+//Error check ?
+#define INPUT_MIN 4500      //max pi
+#define INPUT_MAX 48000     //limite superior do valor entrada para que não seja erro
 
 
 #define D_TW     1 //Car's track Width [Bitola] in meters
@@ -54,6 +54,7 @@
 //Ultility Functions
 double millis();
 double Differential();
+float RPM_to_W(uint16_t RPM_inv);
 void Calibrate_ADC();
 
 struct APPS_struct{
@@ -62,9 +63,10 @@ struct APPS_struct{
 };
 
 struct Wref_struct{
-    float W1; //Win
-    float W2; //Wout
+    uint16_t W1; //Win
+    uint16_t W2; //Wout
 };
+
 
 /*================================== CLASSES ==================================*/
 //class for Acelleration Pedal, break Pedal, and Steering wheel
@@ -82,9 +84,14 @@ class angle_sensor{
     //Methods
     public:
     float read();
-    float Map(long Variable, float in_min, float in_max, float out_min, float out_max); //Maps the Input voltage into the Angle
+    //Maps varible (general func)
+    float map(long Variable, float in_min, float in_max, float out_min, float out_max);
+    //Maps the Input voltage (16bit) into the Angle
+    float map_ADC(long Variable, float in_min, float in_max, float out_min, float out_max);
+    //testes if ADC value (16bit) is within bounds of sensor
     bool Input_Error_Check();
- 
+    //prints raw voltage
+    void Voltage_print();
 
     //Constructors:
     angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max);
@@ -136,7 +143,10 @@ class Steering_Wheel_Sensor: public angle_sensor{
 /*======================================== Constructors ========================================*/
 //Angle Sensor
 inline angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max)
-:ADC_Pin{adc_Pin}, Volt_min{_volt_min},Volt_max{_volt_max}, Angle_min{_angle_min}, Angle_max{_angle_max}{};
+:ADC_Pin{adc_Pin}, Volt_min{_volt_min},Volt_max{_volt_max}, Angle_min{_angle_min}, Angle_max{_angle_max}{
+
+    //ADC_Pin.set_reference_voltage(3.31);
+};
 
 //APP Sensors
 inline APP_Sensors::APP_Sensors(PinName _apps1_pin, PinName _apps2_pin, PinName _apps_out_pin)
@@ -157,21 +167,34 @@ inline Steering_Wheel_Sensor::Steering_Wheel_Sensor(PinName adc_Pin)
 
 
 /*======================================== Methods ========================================*/
-//Maps the input voltage's range into the angle's range 
-inline float angle_sensor::Map (long Variable, float in_min, float in_max, float out_min, float out_max) {
-    //? not quite sure about that one 
+//Maps the ADC 16bit voltage read into the angle's range 
+inline float angle_sensor::map_ADC (long Variable, float in_min, float in_max, float out_min, float out_max) {
+    //Maps the sensors input voltage from [0 - 3.3] to [0 - 16bit]
     in_min= (in_min/3.3)*65535;
     in_max= (in_max/3.3)*65535;
+
     float Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-    
+    return Mapped_Variable;
+}
+
+inline float angle_sensor::map (long Variable, float in_min, float in_max, float out_min, float out_max) {
+    float Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
     return Mapped_Variable;
 }
 
 //Reads the ADC pin and returns the angle value in degrees 
 inline float angle_sensor:: read(){
-    Angle=Map( ADC_Pin.read_u16(), Volt_min, Volt_max, Angle_min, Angle_max);
+    Angle=map_ADC( ADC_Pin.read_u16(), Volt_min, Volt_max, Angle_min, Angle_max);
     return Angle;    
 }
+
+inline void angle_sensor:: Voltage_print(){
+
+    uint16_t Voltage_16bit=ADC_Pin.read_u16();
+    printf("\n[VCU] ADC (16bit) Voltage: %d , Real Voltage: %.2f V  \n",Voltage_16bit, ADC_Pin.read_voltage() );    
+}
+
+
 
 /*======================================== APPS ========================================*/
 inline float APP_Sensors:: read_S1(){
@@ -190,7 +213,7 @@ inline APPS_struct APP_Sensors:: read_APPS(){
     uint16_t max_Apps = uint16_t( max(Angle_S1,Angle_S2) );
 
     //? REALLY not sure about that one:
-    if (APPS_Error_check() == 0){
+    if (APPS_Error_check() == true){
         APPS_out.write_u16(0);
     } 
     else {
@@ -206,6 +229,9 @@ inline APPS_struct APP_Sensors:: read_APPS(){
 
 //Checks if there's a discepancy bigger than 10%, for longer than 100 ms
 inline bool APP_Sensors::APPS_Error_check(){
+    APPS1_Angle=APPS1.read();
+    APPS2_Angle=APPS2.read();
+
     if ( abs(APPS1_Angle - APPS2_Angle) > (0.1 * max(APPS1_Angle, APPS2_Angle)) ){
         if(AppsError_flag == 0) { //Starts Counting
             Error_Start_Time = millis(); 
@@ -255,17 +281,12 @@ inline double millis(){
 }
 
 //Calculates angular speed of the inner and outter Wheels (W_in and W_out)
-inline Wref_struct Differential(float Steering_dg, float Wv){    
+inline Wref_struct Differential(float Steering_dg, uint16_t RPM_inv){    
     float Ack_dg{0}, Ack_rad{0}; //Ackerman Angle, rad[0 0.785], Dg[0 45]
-    float W_out, W_in, d_W;
+    float W_out, W_in, d_W, Wv; //Wv= actual angular speed in the motor ???
     Wref_struct W_dif;
 
-    if(abs(Steering_dg)>=0.04){
-
-    }
-    else{
-        Steering_dg=0;
-    }
+    Wv=RPM_to_W(RPM_inv);
 
     //Steering Wheel to Ackerman Angle
     Ack_dg=0.1415*Steering_dg-0.092;
@@ -275,9 +296,9 @@ inline Wref_struct Differential(float Steering_dg, float Wv){
     d_W= Wv*D_TW*tan(Ack_rad)/(2*A_WB);
 
 
-    if(Wv<d_W){ //?
-        W_out= Wv+d_W;
-        W_in= Wv-d_W;
+    if(Wv<0){ //?
+        W_out= 0;
+        W_in=  0;
     }
     else{
         W_out= Wv+d_W;
@@ -294,5 +315,20 @@ inline void Calibrate_ADC(){
 
 }
 
+//Controls 
+inline void control(){
+    float W_ref,W_m;
+    uint16_t PWM_out;
+
+    PWM_out= (W_ref-W_m);
+
+
+
+}
+
+//Turns the RPM values into Angular velocity [Rad/s]
+inline float RPM_to_W(uint16_t RPM_inv){
+    return (RPM_inv*2*PI/60);
+}
 
 #endif
