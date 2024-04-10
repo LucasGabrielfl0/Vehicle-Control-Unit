@@ -33,7 +33,7 @@ void LerSensoresMPU(MPU9250& mpu9250_instance);
 CAN can1(PD_0,PD_1,500e3);     // Velocidade 1
 
 /*===================================== VCU Sensors Initialization =====================================*/
-BSE_Sensor BSE_1 (BSE_in);
+BSE_Sensor BSE (BSE_in);
 APP_Sensors APPS (APPS1_in ,APPS2_in, APPS_out);
 Steering_Wheel_Sensor Steering_sensor (Volante_in);
 
@@ -60,9 +60,9 @@ int main(){
 
    //t.start();
     APPS_struct Apps_ang= APPS.read_APPS();
-    float BSE_ang= BSE_1.read();
+    float BSE_ang= BSE.read();
     float Steering_ang= Steering_sensor.read();
-    
+    bool Error_check;
     float Veloc_1{0.1};
     float Veloc_2{0.1};
     
@@ -76,7 +76,7 @@ int main(){
     while(true){
         //Read Sensor data
         Apps_ang= APPS.read_APPS();
-        BSE_ang = BSE_1.read();
+        BSE_ang = BSE.read();
         Steering_ang = Steering_sensor.read();
 
 
@@ -91,6 +91,7 @@ int main(){
         printf("\n===========================================================================\n");        
         printf("[VCU] Volante: %.2f , APPS1: %.2f , APPS2: %.2f , BSE: %.2f \n", Steering_ang, Apps_ang.s1, Apps_ang.s2, BSE_ang);
         Steering_sensor.Voltage_print();
+        Error_check=BSE.Plausibility_check( max(Apps_ang.s1,Apps_ang.s2) );
         printf("\n===========================================================================\n");
         
         //printf("ax = %f, ay = %f, az = %f  m/s²\n", ax * 9.81 - 0.15, ay * 9.81 - 0.1, az * 9.81 + 0.12);
@@ -131,7 +132,8 @@ void LerSensoresMPU(MPU9250& mpu9250_instance) {
 
 */
 
-
+//void Send_msg(int id, int data_len, float )
+//we should probably just send the 16bit raw data instead 
 
 void enviar(float Volante, float BSE_v, float APPS1_v, float APPS2_v,
             float Veloc_1,float Veloc_2,float ax_v,float ay_v, float az_v,
