@@ -5,7 +5,7 @@
  
  * This file is part of the car's VCU (VEHICLE CONTROL UNIT)
  * it contains the APPS plausibilty check, BSE plausibility check
- * as well the methods to read and map all the angle related sensors
+ * as well the algorithm for the Electronic Differential
  ***/
 
 #ifndef _ANGLE_SENSOR_H_
@@ -25,8 +25,8 @@
 //BSE (Break System Enconder) Parameters
 #define BSE_min         0.3     //BSE Sensors Minimum input voltage
 #define BSE_max         3.0     //BSE Sensors Minimum input voltage
-#define BSE_ang_min     0.0       //Minimum value for the break Pedal angle (Degrees)
-#define BSE_ang_max     120.0     //Maximum value for the break Pedal angle (Degrees)
+#define BSE_ang_min     0.0     //Minimum value for the break Pedal angle (Degrees)
+#define BSE_ang_max     120.0   //Maximum value for the break Pedal angle (Degrees)
 
 //APPS (Accelerator Pedal Position Sensor) Parameters
 #define APPS1_min       0.425   //APPS1 Minimum input voltage
@@ -35,6 +35,13 @@
 #define APPS2_max       2.9     //APPS2 Maximum input voltage
 #define APPS_ang_min    0       //Minimum value for the Accelerator Pedal angle (Degrees)
 #define APPS_ang_max    120     //Maximum value for the Accelerator Pedal angle (Degrees)
+
+#define APPS1_start     0       //Start Angle for APPS1
+#define APPS1_end       0       //end Angle for APPS1
+#define APPS2_start     0       //Start Angle for APPS2
+#define APPS2_end       0       //end Angle for APPS2
+
+
 
 //Car's Physical parameters (For speed control)
 #define RADIUS_WHEEL    0.27    //Wheel's radius in Meters
@@ -73,7 +80,7 @@ struct Wref_struct{
 class angle_sensor{
 
     //Atributes
-    private:
+    protected:
     float Angle;        //Angle's value in Degree
     float Volt_min;     //Sensor's Minimum voltage measurement
     float Volt_max;     //Sensor's Maximum voltage measurement
@@ -81,27 +88,32 @@ class angle_sensor{
     float Angle_max;    //Sensor's Maximum angle
     AnalogIn ADC_Pin;   //Input Pin in the MicroController
 
+    protected:
+    bool ERROR_State{0}; //if there is actual error, 1= ERROR, 0= all good :) 
+
     //Methods
     public:
     float read();
-    //Maps varible (general func)
-    float map(long Variable, float in_min, float in_max, float out_min, float out_max);
-    //Maps the Input voltage (16bit) into the Angle
-    float map_ADC(long Variable, float in_min, float in_max, float out_min, float out_max);
-    //testes if ADC value (16bit) is within bounds of sensor
-    bool Input_Error_Check();
-    //prints raw voltage
-    void Voltage_print();
+    float map(long Variable, float in_min, float in_max, float out_min, float out_max);     //Maps varible (general func)
+    float map_ADC(long Variable, float in_min, float in_max, float out_min, float out_max); //Maps Voltage (16bit) into Angle
+    void Voltage_print();        //prints raw voltage
+    bool Input_Error_Check();    //tests if ADC value (16bit) is within reasonable range
+    bool get_Error_State();      //1= ERROR, 0= all good :) 
+
 
     //Constructors:
+    public:
     angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max);
 
 };
 
 //Sensors
 class BSE_Sensor: public angle_sensor{
-    //bool BSE_Error_check();
-    
+
+    //methods:
+    public:
+    bool Plausibility_check(float APPS_dg); //1= ERROR, 0= all good :) 
+
     //Constructors:
     public:
     BSE_Sensor(PinName adc_Pin);
@@ -113,21 +125,23 @@ class APP_Sensors{
     private:
     angle_sensor APPS1;
     angle_sensor APPS2;
-    AnalogOut APPS_out;
+    AnalogOut APPS_out; //? => change name, change use
+    //Angle Read
+    float APPS1_Angle{0};           //angle value [degrees]
+    float APPS2_Angle{0};           //angle value [degrees]
+    //Safety
+    double Error_Start_Time{0};     //Time stamp when error started
+    bool AppsError_flag{0};         //just a flag, within the 100ms rule
+    bool ERROR_State{0};            //if there is actual error, 1= ERROR, 0= all good :) 
 
-    float APPS1_Angle{0}; //angle value [degrees]
-    float APPS2_Angle{0}; //angle value [degrees]
-    //Error related Attributes
-    bool AppsError_flag{0}; //just a flag, within the 100ms rule
-    double Error_Start_Time{0}; //Time stamp when error started
-    bool ERROR_State{0}; //if there is actual error, 1= ERROR, 0= all good :) 
-
+    //methods
     public:
-    bool APPS_Error_check(); //1= ERROR, 0= all good :) 
     APPS_struct read_APPS();
     float read_S1();
     float read_S2();
+    bool Implausibility_check(); //1= ERROR, 0= all good :) 
 
+    //constructor
     public:
     APP_Sensors(PinName _apps1_pin, PinName _apps2_pin, PinName _apps_out_pin);
 
@@ -145,7 +159,7 @@ class Steering_Wheel_Sensor: public angle_sensor{
 inline angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max)
 :ADC_Pin{adc_Pin}, Volt_min{_volt_min},Volt_max{_volt_max}, Angle_min{_angle_min}, Angle_max{_angle_max}{
 
-    //ADC_Pin.set_reference_voltage(3.31);
+    ADC_Pin.set_reference_voltage(3.31);
 };
 
 //APP Sensors
@@ -191,7 +205,7 @@ inline float angle_sensor:: read(){
 inline void angle_sensor:: Voltage_print(){
 
     uint16_t Voltage_16bit=ADC_Pin.read_u16();
-    printf("\n[VCU] ADC (16bit) Voltage: %d , Real Voltage: %.2f V  \n",Voltage_16bit, ADC_Pin.read_voltage() );    
+    printf("\n[VCU] ADC (16bit) Voltage: %d , Real Voltage: %.2f V  \n",Voltage_16bit, Voltage_16bit*3.3/65535);    
 }
 
 
@@ -213,7 +227,7 @@ inline APPS_struct APP_Sensors:: read_APPS(){
     uint16_t max_Apps = uint16_t( max(Angle_S1,Angle_S2) );
 
     //? REALLY not sure about that one:
-    if (APPS_Error_check() == true){
+    if (Implausibility_check() == true){
         APPS_out.write_u16(0);
     } 
     else {
@@ -228,7 +242,7 @@ inline APPS_struct APP_Sensors:: read_APPS(){
 
 
 //Checks if there's a discepancy bigger than 10%, for longer than 100 ms
-inline bool APP_Sensors::APPS_Error_check(){
+inline bool APP_Sensors::Implausibility_check(){
     APPS1_Angle=APPS1.read();
     APPS2_Angle=APPS2.read();
 
@@ -237,9 +251,12 @@ inline bool APP_Sensors::APPS_Error_check(){
             Error_Start_Time = millis(); 
             AppsError_flag = 1;
         }
-
-        if(millis() - Error_Start_Time > 100) { //if the error continues after 100ms
+        
+        //if the error continues after 100ms, shuts down motor
+        if(millis() - Error_Start_Time > 100) {
             ERROR_State= 1;
+            printf("[APPS]: IMPLAUSIBILITY CHECK ERROR | ERROR RUNNING TIME: %.2f ms",millis() - Error_Start_Time);
+
         } else{
             ERROR_State= 0;
         }
@@ -271,6 +288,33 @@ inline bool angle_sensor::Input_Error_Check(){
     return isError;
 }
 
+/*======================================== BSE ========================================*/
+//Follows EV.5.7 (Fsae Rule) Break Pedal Plausibility Check (BPPC)
+inline bool BSE_Sensor::Plausibility_check(float APPS_dg){
+    float Total_Course{APPS1_end - APPS1_start};    //angle change between min and max torque                             //APPS current angle value
+    float BSE_dg{read()};                           //BSE Current angle Value
+
+    //if Acelerator Pedal is above 25% total course while break pedal is pressed => ERROR
+    if(APPS_dg>0.25*Total_Course && BSE_dg>0.5){
+        ERROR_State=1;
+    }
+    
+    //Error only stops if Acelerator Pedal is below 5% of total course (regardless of break)  
+    if(APPS_dg<0.05*Total_Course){
+        ERROR_State=0;
+    }
+
+    if(ERROR_State==1){
+        printf("[BSE]: IMPLAUSIBILITY CHECK ERROR | BSE: %.2f° , APPS: %.2f°",BSE_dg, APPS_dg);
+    }
+    
+    return ERROR_State;
+}
+
+
+
+
+
 /*======================================== Auxiliar functions ========================================*/
 //time passed (in ms) since the program first started
 inline double millis(){
@@ -280,7 +324,7 @@ inline double millis(){
     return micros / 1000.0; //turns time passed from us to ms
 }
 
-//Calculates angular speed of the inner and outter Wheels (W_in and W_out)
+//Calculates angular velocity of the inner and outter Wheels (W_in and W_out)
 inline Wref_struct Differential(float Steering_dg, uint16_t RPM_inv){    
     float Ack_dg{0}, Ack_rad{0}; //Ackerman Angle, rad[0 0.785], Dg[0 45]
     float W_out, W_in, d_W, Wv; //Wv= actual angular speed in the motor ???
@@ -316,15 +360,7 @@ inline void Calibrate_ADC(){
 }
 
 //Controls 
-inline void control(){
-    float W_ref,W_m;
-    uint16_t PWM_out;
 
-    PWM_out= (W_ref-W_m);
-
-
-
-}
 
 //Turns the RPM values into Angular velocity [Rad/s]
 inline float RPM_to_W(uint16_t RPM_inv){
