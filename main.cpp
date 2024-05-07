@@ -31,7 +31,7 @@ BSE_Sensor BSE (BSE_PIN);
 APP_Sensors APPS (APPS1_PIN ,APPS2_PIN, APPS_PIN_OUT);
 Steering_Wheel_Sensor Steering_sensor (Steering_WHEEL_PIN);
 
-//Gyro Sensor
+//MPU9250 Sensor (Gyroscope, Accelerometer, and Temperature)
 //mpu
 
 
@@ -70,10 +70,15 @@ int main()
         //Velocity Sensor 
 
 
+        //Send data to Inverters
+        can1.send_to_inverter(RPM_inv1, W_ref.W1, Current_inv1);
+        can1.send_to_inverter_2(RPM_inv2, W_ref.W2, Current_inv2);
+
     
         //Receive Data from Inverters
         Inv1_data=can1.receive_from_inverter();
         Inv2_data=can1.receive_from_inverter_2();
+
 
         //Calculates differential
 
@@ -81,10 +86,12 @@ int main()
         can1.send_to_inverter(RPM_inv1, W_ref.W1, Current_inv1);
         can1.send_to_inverter_2(RPM_inv2, W_ref.W2, Current_inv2);
         
+
         //Datalogger
 
 
         //Telemetry
+
 
         //print Received Data
         can1.Print_Datafields();
