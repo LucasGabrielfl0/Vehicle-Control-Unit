@@ -10,6 +10,7 @@
 
 #include "mbed.h"
 #include "motor_can.h"
+#include "control.h"
 #include "angle_sensor.h"
 #include <cstdint>
 // main() runs in its own thread in the OS
@@ -20,6 +21,25 @@
 #define APPS1_PIN               PF_4
 #define APPS2_PIN               PF_4
 #define APPS_PIN_OUT            PA_5
+
+/*===================================== COMMUNICATION (STM32 F746ZG)=====================================*/
+
+#define CAN1_TX                 PC_2
+#define CAN1_RX                 PA_0
+
+#define CAN2_TX                 PC_2
+#define CAN2_RX                 PA_0
+
+//#define I2C_SCL                 PF_1
+//#define I2C_SDA                 PF_0
+
+
+/*===================================== CONTROL =====================================*/
+#define MAX_CURRENT_LIMIT       10          // Max Phase Current in the motor [A]
+#define MAX_RPM_LIMIT           4500        // Max Velocity of the motor [RPM] 
+
+
+
 
 
 /*===================================== Objetcs =====================================*/
@@ -41,14 +61,12 @@ int main()
     can1.set_CAN();
 
     //Constant Variables
-    const uint16_t Current_inv1{39}, Current_inv2{30};
-    const uint16_t RPM_inv1{9000}, RPM_inv2{9000};
     float BSE_dg{0} ,Steering_dg{0};
     
     //Structs
     Rx_struct Inv1_data, Inv2_data;
     APPS_struct APPS_dg;
-    Wref_struct W_ref;
+    Velocity_struct RPM_set;
 
     /*================================== LOOP ==================================*/
     while (true) {
@@ -68,12 +86,6 @@ int main()
 
 
         //Velocity Sensor 
-
-
-        //Send data to Inverters
-        can1.send_to_inverter(RPM_inv1, W_ref.W1, Current_inv1);
-        can1.send_to_inverter_2(RPM_inv2, W_ref.W2, Current_inv2);
-
     
         //Receive Data from Inverters
         Inv1_data=can1.receive_from_inverter();
@@ -82,9 +94,10 @@ int main()
 
         //Calculates differential
 
+
         //Send data to Inverters
-        can1.send_to_inverter(RPM_inv1, W_ref.W1, Current_inv1);
-        can1.send_to_inverter_2(RPM_inv2, W_ref.W2, Current_inv2);
+        can1.send_to_inverter  (MAX_RPM_LIMIT, RPM_set.RPM_W1  , MAX_CURRENT_LIMIT);
+        can1.send_to_inverter_2(MAX_RPM_LIMIT, RPM_set.RPWM_W2 , MAX_CURRENT_LIMIT);
         
 
         //Datalogger

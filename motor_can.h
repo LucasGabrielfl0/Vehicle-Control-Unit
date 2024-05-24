@@ -25,7 +25,7 @@
 #define MAXPWM 65535
 #define MAX_CAN_DATA_SIZE 8
 
-#define N_Poles_Motor 15
+#define MOTOR_POLE_PAIRS 15            //Number of Pole Pairs in the Motor
 
 #define N_LEITURAS 10
 #define SENSOR_MIN_OFFSET_5V 6650  // Para 5 volts utilizando uma fonte debancada
@@ -73,6 +73,9 @@ class motor_can:public CAN{
     //Send data to both motor Controllers
     void send_to_inverter(uint16_t rpm_1, uint16_t pwm_1, uint16_t current_1 );
     void send_to_inverter_2(uint16_t rpm_2, uint16_t pwm_2, uint16_t current_2 );
+    void send_to_inverter_3(uint16_t DC_pwm_2, bool IsThrottle, bool IsReverse );
+
+
 
     // Receive data from both motor controllers
     Rx_struct receive_from_inverter();
@@ -128,7 +131,7 @@ inline void motor_can:: send_to_inverter(uint16_t rpm_1, uint16_t pwm_1, uint16_
  
     inverter_tx_msg.data[0] = rpm_1 & 0xFF; //  Byte menos significativos do RPM
     inverter_tx_msg.data[1] = rpm_1 >> 8; // Byte mais significativos do RPM
-    inverter_tx_msg.data[2] = N_Poles_Motor; // Numero de pares de polos do motor
+    inverter_tx_msg.data[2] = MOTOR_POLE_PAIRS; // Numero de pares de polos do motor
     inverter_tx_msg.data[3] = pwm_1 & 0xFF; // Byte menos significativo do PWM
     inverter_tx_msg.data[4] = pwm_1 >> 8; // Byte mais significativo do PWM
     inverter_tx_msg.data[5] = current_1 & 0xFF; // Byte menos significativo corrente;
@@ -142,14 +145,14 @@ inline void motor_can:: send_to_inverter_2(uint16_t rpm_2, uint16_t pwm_2, uint1
     inverter_tx_msg_2.id = INVERSOR_TX_ID_2;
     inverter_tx_msg_2.len = 8; // Define o tamanho da msg, max = 8 Bytes
  
-    inverter_tx_msg_2.data[0] = rpm_2 & 0xFF; //  Byte menos significativos do RPM
-    inverter_tx_msg_2.data[1] = rpm_2 >> 8; // Byte mais significativos do RPM
-    inverter_tx_msg_2.data[2] = N_Poles_Motor; // Numero de pares de polos do motor
-    inverter_tx_msg_2.data[3] = pwm_2 & 0xFF; // Byte menos significativo do PWM
-    inverter_tx_msg_2.data[4] = pwm_2 >> 8; // Byte mais significativo do PWM
-    inverter_tx_msg_2.data[5] = current_2 & 0xFF; // Byte menos significativo corrente;
-    inverter_tx_msg_2.data[6] = current_2 >> 8; // Byte mais significativo da corrente;
-    inverter_tx_msg_2.data[7] = 0b00000000; 
+    inverter_tx_msg_2.data[0] = rpm_2 & 0xFF;       //  LSB RPM
+    inverter_tx_msg_2.data[1] = rpm_2 >> 8;         // MSB RPM
+    inverter_tx_msg_2.data[2] = MOTOR_POLE_PAIRS;
+    inverter_tx_msg_2.data[3] = pwm_2 & 0xFF;       // LSB PWM (DutyCycle)
+    inverter_tx_msg_2.data[4] = pwm_2 >> 8;         // MSB PWM (DutyCycle)
+    inverter_tx_msg_2.data[5] = current_2 & 0xFF;   // Current's  LSB;
+    inverter_tx_msg_2.data[6] = current_2 >> 8;     // Current's  MSB;
+    inverter_tx_msg_2.data[7] = 0b00000000;         // 0 = Forward || 1 = Reverse
 
 }
 
