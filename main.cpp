@@ -27,16 +27,13 @@
 #define CAN1_TX                 PC_2
 #define CAN1_RX                 PA_0
 
-#define CAN2_TX                 PC_2
-#define CAN2_RX                 PA_0
+#define CAN2_TX                 PC_2    //
+#define CAN2_RX                 PA_0    //
+
+#define CAN_FREQUENCY           1e6     //CAN frequency in Hz (for CAN 2.0, its 1Mbit/s [1MHz])
 
 //#define I2C_SCL                 PF_1
 //#define I2C_SDA                 PF_0
-
-
-/*===================================== CONTROL =====================================*/
-#define MAX_CURRENT_LIMIT       10          // Max Phase Current in the motor [A]
-#define MAX_RPM_LIMIT           4500        // Max Velocity of the motor [RPM] 
 
 
 
@@ -88,26 +85,30 @@ int main()
         //Velocity Sensor 
     
         //Receive Data from Inverters
-        Inv1_data=can1.receive_from_inverter();
-        Inv2_data=can1.receive_from_inverter_2();
+        // Inv1_data=can1.receive_from_inverter();
+        // Inv2_data=can1.receive_from_inverter_2();
 
 
-        //Calculates differential
-
+        //Control
+        wait_us(5e5);
 
         //Send data to Inverters
-        can1.send_to_inverter  (MAX_RPM_LIMIT, RPM_set.RPM_W1  , MAX_CURRENT_LIMIT);
-        can1.send_to_inverter_2(MAX_RPM_LIMIT, RPM_set.RPWM_W2 , MAX_CURRENT_LIMIT);
+        // can1.send_to_inverter_1(1,RPM_set.RPM_W1,1);
+        // can1.send_to_inverter_2(RPM_set.RPM_W2,1,1);
         
 
         //Datalogger
 
+        APPS.APPS1.Voltage_print();
 
         //Telemetry
 
-
+        // Print Sensors:
+        // printf("\n ========");
+        // printf("Apps1: %.2f, BSE: %.2f", APPS_dg.s1 ,BSE_dg);
+        // printf("\n ========");
         //print Received Data
-        can1.Print_Datafields();
+        //can1.Print_Datafields();
 
     }
 }

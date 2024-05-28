@@ -16,6 +16,9 @@
 #include <time.h>
 
 /*================================== SENSORS PARAMETERS ==================================*/
+//General Parameters 
+#define VREF_ADC        3.3     //ADC Reference (in volts), it scales the 16bit in that range
+
 //Steering Wheel Parameters
 #define Vol_min         0.425   //Steering Wheel Sensors Minimum input voltage
 #define Vol_max         2.825   //Steering Wheel Sensors Sensors Maximum input voltage
@@ -44,11 +47,6 @@
 //Error check ?
 #define INPUT_MIN 4500      //max pi
 #define INPUT_MAX 48000     //limite superior do valor entrada para que não seja erro
-
-
-#define D_TW     1 //Car's track Width [Bitola] in meters
-#define A_WB     1 //Car's Wheelbase in meters 
-#define PI      3.14159265358979323846
 
 
 //Ultility Functions
@@ -111,10 +109,13 @@ class APP_Sensors{
     //Tests if theres more than 10% discrepancy between APPS1 and APPS2
     //If there is a discrapancy, and it maintains for more then 10ms, Error=1 and shuts down the motor
     private:
-    angle_sensor APPS1;
-    angle_sensor APPS2;
     AnalogOut APPS_out;
 
+    public:
+    angle_sensor APPS1;
+    angle_sensor APPS2;
+
+    private:
     float APPS1_Angle{0};           //angle value [degrees]
     float APPS2_Angle{0};           //angle value [degrees]
     //Error related Attributes
@@ -143,7 +144,7 @@ class Steering_Wheel_Sensor: public angle_sensor{
 /*======================================== Constructors ========================================*/
 //Angle Sensor
 inline angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max)
-:ADC_Pin{adc_Pin}, Volt_min{_volt_min},Volt_max{_volt_max}, Angle_min{_angle_min}, Angle_max{_angle_max}{
+:ADC_Pin{adc_Pin,VREF_ADC}, Volt_min{_volt_min},Volt_max{_volt_max}, Angle_min{_angle_min}, Angle_max{_angle_max}{
 
     //ADC_Pin.set_reference_voltage(3.31);
 };
@@ -191,6 +192,7 @@ inline float angle_sensor:: read(){
 inline void angle_sensor:: Voltage_print(){
 
     uint16_t Voltage_16bit=ADC_Pin.read_u16();
+    ADC_Pin.set_reference_voltage(3.3);
     printf("\n[VCU] ADC (16bit) Voltage: %d , Real Voltage: %.2f V  \n",Voltage_16bit, ADC_Pin.read_voltage() );    
 }
 
@@ -280,55 +282,11 @@ inline double millis(){
     return micros / 1000.0; //turns time passed from us to ms
 }
 
-//Calculates angular speed of the inner and outter Wheels (W_in and W_out)
-inline Wref_struct Differential(float Steering_dg, uint16_t RPM_inv){    
-    float Ack_dg{0}, Ack_rad{0}; //Ackerman Angle, rad[0 0.785], Dg[0 45]
-    float W_out, W_in, d_W, Wv; //Wv= actual angular speed in the motor ???
-    Wref_struct W_dif;
-
-    Wv=RPM_to_W(RPM_inv);
-
-    //Steering Wheel to Ackerman Angle
-    Ack_dg=0.1415*Steering_dg-0.092;
-    Ack_rad=Ack_dg*PI/180; //rad2deg
-    
-    //Ackerman Angle to angular speed (wheels)
-    d_W= Wv*D_TW*tan(Ack_rad)/(2*A_WB);
-
-
-    if(Wv<0){ //?
-        W_out= 0;
-        W_in=  0;
-    }
-    else{
-        W_out= Wv+d_W;
-        W_in= Wv-d_W;
-    }
-
-    W_dif.W1=W_in;
-    W_dif.W2=W_out;
-    
-    return W_dif;
-}
 
 inline void Calibrate_ADC(){
 
 }
 
-//Controls 
-inline void control(){
-    float W_ref,W_m;
-    uint16_t PWM_out;
 
-    PWM_out= (W_ref-W_m);
-
-
-
-}
-
-//Turns the RPM values into Angular velocity [Rad/s]
-inline float RPM_to_W(uint16_t RPM_inv){
-    return (RPM_inv*2*PI/60);
-}
 
 #endif

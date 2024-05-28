@@ -31,6 +31,13 @@
 #define SENSOR_MIN_OFFSET_5V 6650  // Para 5 volts utilizando uma fonte debancada
 #define SENSOR_MAX_OFFSET_5V 65535
 
+
+/*===================================== CONTROL =====================================*/
+#define MAX_CURRENT_LIMIT       10          // Max Phase Current in the motor [A]
+#define MAX_RPM_LIMIT           4500        // Max Velocity of the motor [RPM] 
+
+
+
 /*================================== Receive Struct ==================================*/
 struct Rx_struct{
     //Receiver Datafield in CAN 2.0 standard (In order)
@@ -71,9 +78,11 @@ class motor_can:public CAN{
     bool is_can_active();
     
     //Send data to both motor Controllers
-    void send_to_inverter(uint16_t rpm_1, uint16_t pwm_1, uint16_t current_1 );
-    void send_to_inverter_2(uint16_t rpm_2, uint16_t pwm_2, uint16_t current_2 );
-    void send_to_inverter_3(uint16_t DC_pwm_2, bool IsThrottle, bool IsReverse );
+    void send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm_1, bool IsBreak, bool IsReverse );
+    void send_to_inverter_1(uint16_t DC_pwm_1, bool IsBreak, bool IsReverse );
+    void send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak, bool IsReverse );
+    
+//    void send_to_inverter_3(uint16_t DC_pwm_2, bool IsThrottle, bool IsReverse );
 
 
 
@@ -111,6 +120,7 @@ inline void motor_can:: reset_can() {
 
 
 //Tests if CAN can send messages
+//Creates empy CAN message and tests if it was sent
 inline bool motor_can:: baud_test(){
     CANMessage msg;
     return write(msg);    
@@ -123,37 +133,46 @@ inline bool motor_can::is_can_active(){
     return read(msg); // tente ler uma mensagem
 }
 
-
-inline void motor_can:: send_to_inverter(uint16_t rpm_1, uint16_t pwm_1, uint16_t current_1 ){
-    CANMessage inverter_tx_msg;
-    inverter_tx_msg.id = INVERSOR_TX_ID;
-    inverter_tx_msg.len = 8; // Define o tamanho da msg, max = 8 Bytes
+// Sends Data to Motor Controller
+inline void motor_can:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, bool IsBreak, bool IsReverse ){    
+    IsBreak=0; // DON'T use Break while using power source (only with batteries).
+    
+    CANMessage inverter_tx_msg;     // Creates Can message
+    inverter_tx_msg.id= Motor_Id;   // Id
+    inverter_tx_msg.len = 8;        // Datafield size [Bytes], the max size is 8
  
-    inverter_tx_msg.data[0] = rpm_1 & 0xFF; //  Byte menos significativos do RPM
-    inverter_tx_msg.data[1] = rpm_1 >> 8; // Byte mais significativos do RPM
-    inverter_tx_msg.data[2] = MOTOR_POLE_PAIRS; // Numero de pares de polos do motor
-    inverter_tx_msg.data[3] = pwm_1 & 0xFF; // Byte menos significativo do PWM
-    inverter_tx_msg.data[4] = pwm_1 >> 8; // Byte mais significativo do PWM
-    inverter_tx_msg.data[5] = current_1 & 0xFF; // Byte menos significativo corrente;
-    inverter_tx_msg.data[6] = current_1 >> 8; // Byte mais significativo da corrente;
-    inverter_tx_msg.data[7] = 0b00000000; 
+    inverter_tx_msg.data[0] = MAX_RPM_LIMIT & 0xFF;                 //  LSB RPM
+    inverter_tx_msg.data[1] = MAX_RPM_LIMIT >> 8;                   // MSB RPM
+    inverter_tx_msg.data[2] = MOTOR_POLE_PAIRS;                     // Constant (15 pairs)
+    inverter_tx_msg.data[3] = DC_pwm & 0xFF;                        // LSB PWM (DutyCycle)
+    inverter_tx_msg.data[4] = DC_pwm >> 8;                          // MSB PWM (DutyCycle)
+    inverter_tx_msg.data[5] = MAX_CURRENT_LIMIT & 0xFF;             // Current's  LSB;
+    inverter_tx_msg.data[6] = MAX_CURRENT_LIMIT >> 8;               // Current's  MSB;
+    inverter_tx_msg.data[7] = 0b00000000;
+    //inverter_tx_msg.data[7] = (IsBreak<<7) + (IsReverse<< 6);       // b7: 0 = Throtle || 1 = Brake 0
+                                                                    // b6: 0 = Forward || 1 = Reverse
+    
+    //Sends CAN message, resets can if there is an error
+    if(baud_test()) {
+        //if CAN channel is good, sends msg
+        if(write(inverter_tx_msg)) {
+        }
+        else {
+            printf("Mesagem não enviada...\n");
+            reset_can(); 
+            }
+    }
 
 }
 
-inline void motor_can:: send_to_inverter_2(uint16_t rpm_2, uint16_t pwm_2, uint16_t current_2 ){
-    CANMessage inverter_tx_msg_2;
-    inverter_tx_msg_2.id = INVERSOR_TX_ID_2;
-    inverter_tx_msg_2.len = 8; // Define o tamanho da msg, max = 8 Bytes
- 
-    inverter_tx_msg_2.data[0] = rpm_2 & 0xFF;       //  LSB RPM
-    inverter_tx_msg_2.data[1] = rpm_2 >> 8;         // MSB RPM
-    inverter_tx_msg_2.data[2] = MOTOR_POLE_PAIRS;
-    inverter_tx_msg_2.data[3] = pwm_2 & 0xFF;       // LSB PWM (DutyCycle)
-    inverter_tx_msg_2.data[4] = pwm_2 >> 8;         // MSB PWM (DutyCycle)
-    inverter_tx_msg_2.data[5] = current_2 & 0xFF;   // Current's  LSB;
-    inverter_tx_msg_2.data[6] = current_2 >> 8;     // Current's  MSB;
-    inverter_tx_msg_2.data[7] = 0b00000000;         // 0 = Forward || 1 = Reverse
+// Sends Data to Motor Controller 1
+inline void motor_can:: send_to_inverter_1(uint16_t DC_pwm_1, bool IsBreak, bool IsReverse ){
+    send_to_inverter(INVERSOR_TX_ID, DC_pwm_1, IsBreak, IsReverse);
+}
 
+// Sends Data to Motor Controller 2
+inline void motor_can:: send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak, bool IsReverse ){
+    send_to_inverter(INVERSOR_TX_ID_2, DC_pwm_2, IsBreak, IsReverse);
 }
 
 
