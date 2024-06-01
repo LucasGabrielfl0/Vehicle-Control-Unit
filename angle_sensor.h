@@ -17,13 +17,16 @@
 
 /*================================== SENSORS PARAMETERS ==================================*/
 //General Parameters 
-#define VREF_ADC        3.3     //ADC Reference (in volts), it scales the 16bit in that range
+#define VREF_ADC        3.3     // ADC Reference (in volts), it scales the 16bit in that range
+#define INPUT_MIN       4500    // Minimum 16bit Input the sensor should read
+#define INPUT_MAX       48000   // Maximum 16bit Input the sensor should read
+
 
 //Steering Wheel Parameters
 #define Vol_min         0.425   //Steering Wheel Sensors Minimum input voltage
 #define Vol_max         2.825   //Steering Wheel Sensors Sensors Maximum input voltage
-#define Vol_ang_min     -180    //Minimum value for the Steering Wheel angle (Degrees)
-#define Vol_ang_max     180     //Maximum value for the Steering Wheel angle (Degrees)
+#define Vol_ang_min     -120    //Minimum value for the Steering Wheel angle (Degrees)
+#define Vol_ang_max     120     //Maximum value for the Steering Wheel angle (Degrees)
 
 //BSE (Break System Enconder) Parameters
 #define BSE_min         0.3     //BSE Sensors Minimum input voltage
@@ -32,21 +35,23 @@
 #define BSE_ang_max     120.0     //Maximum value for the break Pedal angle (Degrees)
 
 //APPS (Accelerator Pedal Position Sensor) Parameters
-#define APPS1_min       0.425   //APPS1 Minimum input voltage
-#define APPS1_max       3.021   //APPS1 Maximum input voltage
-#define APPS2_min       0.4     //APPS2 Minimum input voltage
-#define APPS2_max       2.9     //APPS2 Maximum input voltage
+#define APPS1_MIN       0.425   //APPS1 Minimum input voltage
+#define APPS1_MAX       3.021   //APPS1 Maximum input voltage
+#define APPS2_MIN       0.4     //APPS2 Minimum input voltage
+#define APPS2_MAX       2.9     //APPS2 Maximum input voltage
 #define APPS_ang_min    0       //Minimum value for the Accelerator Pedal angle (Degrees)
 #define APPS_ang_max    120     //Maximum value for the Accelerator Pedal angle (Degrees)
+
+#define APPS_MIN_READ           10          // min 16 bit[0 - 65353] value of  
+#define APPS_MAX_READ           4500        // Max Velocity of the motor [RPM] 
+
+#define STEERING_MIN_READ       10          // min 16 bit[0 - 65353] value of  
+#define STEERING_MAX_READ       500        // Max Velocity of the motor [RPM] 
+
 
 //Car's Physical parameters (For speed control)
 #define RADIUS_WHEEL    0.27    //Wheel's radius in Meters
 #define N_DISC_WHOLES   3       //Number of wholes in the break's disc
-
-
-//Error check ?
-#define INPUT_MIN 4500      //max pi
-#define INPUT_MAX 48000     //limite superior do valor entrada para que não seja erro
 
 
 //Ultility Functions
@@ -81,9 +86,8 @@ class angle_sensor{
 
     //Methods
     public:
-    float read();
-    //Maps varible (general func)
-    float map(long Variable, float in_min, float in_max, float out_min, float out_max);
+    float read_angle();
+    uint16_t read_scaled_u16();
     //Maps the Input voltage (16bit) into the Angle
     float map_ADC(long Variable, float in_min, float in_max, float out_min, float out_max);
     //testes if ADC value (16bit) is within bounds of sensor
@@ -145,15 +149,14 @@ class Steering_Wheel_Sensor: public angle_sensor{
 //Angle Sensor
 inline angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max)
 :ADC_Pin{adc_Pin,VREF_ADC}, Volt_min{_volt_min},Volt_max{_volt_max}, Angle_min{_angle_min}, Angle_max{_angle_max}{
-
     //ADC_Pin.set_reference_voltage(3.31);
 };
 
 //APP Sensors
 inline APP_Sensors::APP_Sensors(PinName _apps1_pin, PinName _apps2_pin, PinName _apps_out_pin)
-    :APPS1(_apps1_pin,APPS1_min,APPS1_max,APPS_ang_min,APPS_ang_max), //APPS 1
-    APPS2(_apps2_pin,APPS2_min,APPS2_max,APPS_ang_min,APPS_ang_max), // APPS 2
-    APPS_out{_apps_out_pin}{} //APPS out
+    :APPS1(_apps1_pin,APPS1_MIN,APPS1_MAX,APPS_ang_min,APPS_ang_max), //APPS 1
+     APPS2(_apps2_pin,APPS2_MIN,APPS2_MAX,APPS_ang_min,APPS_ang_max), // APPS 2
+     APPS_out{_apps_out_pin}{} //APPS out
 
 
 //BSE Sensor
@@ -162,7 +165,7 @@ inline BSE_Sensor::BSE_Sensor(PinName adc_Pin)
 
 //Steering Wheel Sensor
 inline Steering_Wheel_Sensor::Steering_Wheel_Sensor(PinName adc_Pin)
-:angle_sensor{adc_Pin, Vol_min, Vol_max, Vol_ang_min, Vol_ang_max}{}
+    :angle_sensor{adc_Pin, Vol_min, Vol_max, Vol_ang_min, Vol_ang_max}{}
 
 
 
@@ -178,14 +181,15 @@ inline float angle_sensor::map_ADC (long Variable, float in_min, float in_max, f
     return Mapped_Variable;
 }
 
-inline float angle_sensor::map (long Variable, float in_min, float in_max, float out_min, float out_max) {
-    float Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-    return Mapped_Variable;
-}
 
 //Reads the ADC pin and returns the angle value in degrees 
-inline float angle_sensor:: read(){
+inline float angle_sensor:: read_angle(){
     Angle=map_ADC( ADC_Pin.read_u16(), Volt_min, Volt_max, Angle_min, Angle_max);
+    return Angle;    
+}
+
+inline uint16_t angle_sensor:: read_scaled_u16(){
+    uint16_t u1=map_ADC( ADC_Pin.read_u16(), Volt_min, Volt_max, 0, 65535);
     return Angle;    
 }
 
@@ -193,25 +197,25 @@ inline void angle_sensor:: Voltage_print(){
 
     uint16_t Voltage_16bit=ADC_Pin.read_u16();
     ADC_Pin.set_reference_voltage(3.3);
-    printf("\n[VCU] ADC (16bit) Voltage: %d , Real Voltage: %.2f V  \n",Voltage_16bit, ADC_Pin.read_voltage() );    
+    printf("\n[VCU] ADC: Voltage_Read[16bit]: %d , Voltage[V]: %.2f V  \n",Voltage_16bit, ADC_Pin.read_voltage() );    
 }
 
 
 
 /*======================================== APPS ========================================*/
 inline float APP_Sensors:: read_S1(){
-    return APPS1.read();    
+    return APPS1.read_angle();    
 }
 
 inline float APP_Sensors:: read_S2(){
-    return APPS2.read();    
+    return APPS2.read_angle();    
 }
 
 inline APPS_struct APP_Sensors:: read_APPS(){
     APPS_struct Apps_values;
     
-    float Angle_S1=APPS1.read();
-    float Angle_S2=APPS2.read();
+    float Angle_S1=APPS1.read_angle();
+    float Angle_S2=APPS2.read_angle();
     uint16_t max_Apps = uint16_t( max(Angle_S1,Angle_S2) );
 
     //? REALLY not sure about that one:
@@ -229,10 +233,10 @@ inline APPS_struct APP_Sensors:: read_APPS(){
 }
 
 
-//Checks if there's a discepancy bigger than 10%, for longer than 100 ms
+// Checks if there's a discrepancy bigger than 10%, for longer than 100 ms
 inline bool APP_Sensors::APPS_Error_check(){
-    APPS1_Angle=APPS1.read();
-    APPS2_Angle=APPS2.read();
+    APPS1_Angle=APPS1.read_angle();
+    APPS2_Angle=APPS2.read_angle();
 
     if ( abs(APPS1_Angle - APPS2_Angle) > (0.1 * max(APPS1_Angle, APPS2_Angle)) ){
         if(AppsError_flag == 0) { //Starts Counting
@@ -255,7 +259,7 @@ inline bool APP_Sensors::APPS_Error_check(){
 }
 
 inline bool angle_sensor::Input_Error_Check(){
-    float Angle_Value=read();
+    float Angle_Value=read_angle();
     float prevTime{0};
     bool isError{0};
 
@@ -280,6 +284,11 @@ inline double millis(){
     auto now_us = time_point_cast<microseconds>(Kernel::Clock::now()); //time of referece= program's begin
     long micros = now_us.time_since_epoch().count(); //time (in us) since the reference 
     return micros / 1000.0; //turns time passed from us to ms
+}
+
+inline float map (long Variable, float in_min, float in_max, float out_min, float out_max) {
+    float Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    return Mapped_Variable;
 }
 
 

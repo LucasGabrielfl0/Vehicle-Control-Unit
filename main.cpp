@@ -59,19 +59,20 @@ int main()
 
     //Constant Variables
     float BSE_dg{0} ,Steering_dg{0};
-    
+    bool Error_flag;
     //Structs
     Rx_struct Inv1_data, Inv2_data;
     APPS_struct APPS_dg;
-    Velocity_struct RPM_set;
+    Velocity_struct Wheel_Velocity;
 
     /*================================== LOOP ==================================*/
     while (true) {
         //Read all Angle Sensors connected to the VCU
         APPS_dg= APPS.read_APPS();
-        BSE_dg = BSE.read();
-        Steering_dg = Steering_sensor.read();
+        BSE_dg = BSE.read_angle();
+        Steering_dg = Steering_sensor.read_angle();
         
+
         //Read MPU9250
         //MPU9250: Accelerometer
 
@@ -90,25 +91,32 @@ int main()
 
 
         //Control
-        wait_us(5e5);
-
-        //Send data to Inverters
-        // can1.send_to_inverter_1(1,RPM_set.RPM_W1,1);
-        // can1.send_to_inverter_2(RPM_set.RPM_W2,1,1);
+        // Wheel_Velocity = get_PWM(APPS_dg.s1, Steering_dg, Error_flag);
+        // Wheel_Velocity = get_PWM(APPS_dg.s1, 0, Error_flag);
         
+        //Send data to Inverters
+        // can1.send_to_inverter_1(Wheel_Velocity.RPM_W1, false,false);
+        // can1.send_to_inverter_2(Wheel_Velocity.RPM_W2, false,false);
 
         //Datalogger
 
-        APPS.APPS1.Voltage_print();
-
         //Telemetry
 
-        // Print Sensors:
-        // printf("\n ========");
+
+        // Print:
+        printf("\n APPS:");
+        APPS.APPS1.Voltage_print();
+        printf("\n BSE:");
+
+        BSE.Voltage_print();
+
         // printf("Apps1: %.2f, BSE: %.2f", APPS_dg.s1 ,BSE_dg);
         // printf("\n ========");
         //print Received Data
         //can1.Print_Datafields();
+
+
+        wait_us(10e5);
 
     }
 }

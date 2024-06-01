@@ -29,7 +29,7 @@
 #define D_TW     1                          //Car's track Width [Bitola] in meters
 #define A_WB     1                          //Car's Wheelbase in meters 
 #define PI      3.14159265358979323846      // PI 
-
+#define KC      0.39                        //Diferencial
 
 /*======================================== Structs ========================================*/
 struct Velocity_struct{
@@ -79,102 +79,56 @@ Interrupt for either motor controller or motor above temperature limit
 /*================================== DIFFERENTIAL ==================================*/
 // Calculates the Velocity [in RPM] of each wheel during a turn
 // W1 = [LEFT WHEEL] || W2 = [RIGHT WHEEL]
-inline Velocity_struct get_Differential(float Steering_dg, float Vx_rpm){
-    float Ack_dg,Ack_rad;
-    float Wv, del_W;
+inline Velocity_struct get_Differential(float Steering_dg, uint16_t Wv_rpm){
+    float Ack_rad;
+    float del_W;
     Velocity_struct Differential_vel;
 
-    // Get Wv [Linear Angular velocity] in rad/s
-    Wv= Vx_rpm * (2*PI)/60;
-    
-    // Get Ackerman Angle [in rad] using the steering Wheel rotation 
+    // Get Ackerman Angle [in rad] using the steering Wheel rotation [in Degrees] 
     Ack_rad=(0.1415 * Steering_dg - 0.092)* PI/180;
 
-    // Variation 
-    del_W= Wv * D_TW * tan(Ack_rad)/(2*A_WB);
+    // Velocity Variation during turn
+    del_W= KC * tan(Ack_rad);
     
     // Calculate differential [in Rad/s] and turns into RPM
-    Differential_vel.RPM_W1= (Wv + del_W) * 60/(2*PI);
-    Differential_vel.RPM_W2= (Wv - del_W) * 60/(2*PI);
+    // Note: there's a Implicit Type Conversion there
+    Differential_vel.RPM_W1= Wv_rpm * ( 1 + del_W);
+    Differential_vel.RPM_W2= Wv_rpm * ( 1 - del_W);
 
     return Differential_vel;
 }
 
-
-
 /*================================== VECELOCITY CONTROL ==================================*/
-// just a draft :)
-inline void set_Velocity(){
-    uint16_t rpm_SETPOINT, rpm_MOTOR; // int or float? => check digital control
-    int16_t rpm_error;
-
-    // rpm_SETPOINT= get_Differential(1);
-    
-    //Error = Desired rpm - Real RPM
-    rpm_error = rpm_SETPOINT - rpm_MOTOR;
-
-    // Only applies control if error is above limit
-    if (abs(rpm_error) <= MAX_RPM_ERROR){
-        rpm_error =0;
-    }
-
-    //control (z)
-    //output: DutyCycle
-}
-
-/*================================== DUMMY CONTROL FOR TESTS ==================================*/
 // Proportional control + Electronic Differential
-inline Velocity_struct set_Velocity_1( uint16_t Apps_16b,int Wheel_dg ){
+// Apps_16b= Accel. Pedal signal scaled [0 = Min angle | 65535 = Max Angle]
+// Wheel_dg= Steering Wheel
+inline Velocity_struct get_PWM( uint16_t Apps_16b,float Wheel_dg, bool Error_flag ){
     uint16_t rpm_SETPOINT, rpm_MOTOR; // int or float? => check digital control
     int16_t rpm_error, Wx_rpm;
-    Velocity_struct Wheels;
+    Velocity_struct Velocity_Wheels;
 
-    //APPS TO Wx
-    Wx_rpm= Apps_16b;
+    //Maps APPS signal into Velocity [Min angle, Max Angle] -> [Min Speed, Max Speed]
+    Wx_rpm=map(Apps_16b, APPS_MIN_READ, APPS_MAX_READ, 0, 65535); //
+
     // Electronic Diffetential
-    //rpm_SETPOINT= get_Differential(1);
-
-    rpm_SETPOINT=1;
-    
-    //Maps apps to speed
-
-    //Maps apps to speed
-    rpm_SETPOINT= Apps_16b;
+    Velocity_Wheels= get_Differential(Wheel_dg, Apps_16b);
 
     //Error = Desired rpm - Current RPM in the motor
     rpm_error = rpm_SETPOINT - rpm_MOTOR;
 
-    // Only applies control if error is above limit
-    if (abs(rpm_error) >= MAX_RPM_ERROR){
-        Wheels.RPM_W1  = rpm_SETPOINT;
-        Wheels.RPM_W2 = rpm_SETPOINT;
+    // // Only applies control if error is above limit
+    // if (abs(rpm_error) >= MAX_RPM_ERROR){
+    //     Velocity_Wheels.RPM_W1  = rpm_SETPOINT;
+    //     Velocity_Wheels.RPM_W2 =  rpm_SETPOINT;
+    // }
+
+    // If theres an Error, PWM = 0%
+    if(Error_flag==true){
+        Velocity_Wheels.RPM_W1  = 0;
+        Velocity_Wheels.RPM_W2 = 0;
     }
 
-    return Wheels;
+    return Velocity_Wheels;
 }
-
-// Proportional control without Electronic Differential
-inline Velocity_struct set_Velocity_1(uint16_t Apps_16b){
-    uint16_t rpm_SETPOINT, rpm_MOTOR; // int or float? => check digital control
-    int16_t rpm_error;
-    Velocity_struct Wheels;
-
-    //Maps apps to speed
-    rpm_SETPOINT= Apps_16b;
-
-    //Error = Desired rpm - Current RPM in the motor
-    rpm_error = rpm_SETPOINT - rpm_MOTOR;
-
-    // Only applies control if error is above limit
-    if (abs(rpm_error) >= MAX_RPM_ERROR){
-        Wheels.RPM_W1  = rpm_SETPOINT;
-        Wheels.RPM_W2 = rpm_SETPOINT;
-    }
-
-    return Wheels;
-}
-
-
-
 
 #endif
