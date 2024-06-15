@@ -77,9 +77,9 @@ class motor_can:public CAN{
     bool is_can_active();
     
     //Send data to both motor Controllers
-    void send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm_1, bool IsBreak, bool IsReverse );
-    void send_to_inverter_1(uint16_t DC_pwm_1, bool IsBreak, bool IsReverse );
-    void send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak, bool IsReverse );
+    void send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm_1, bool IsBreak );
+    void send_to_inverter_1(uint16_t DC_pwm_1, bool IsBreak);
+    void send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak);
 
     // Receive data from both motor controllers
     Rx_struct receive_from_inverter(unsigned int Inverter_Id);
@@ -114,8 +114,7 @@ inline void motor_can:: reset_can() {
     filter(0, 0, CANStandard); // reconfigurar o filtro para receber todas as mensagens
 }
 
-//Tests if CAN can send messages
-//Creates empy CAN message and tests if it was sent
+//Tests if CAN can send messages (Creates empy CAN message and tests if it was sent)
 inline bool motor_can:: baud_test(){
     CANMessage msg;
     return write(msg);    
@@ -127,8 +126,19 @@ inline bool motor_can::is_can_active(){
     return read(msg); // tente ler uma mensagem
 }
 
+/*==========================================  SEND DATA ==========================================*/
+// Sends Data to Motor Controller 1
+inline void motor_can:: send_to_inverter_1(uint16_t DC_pwm_1, bool IsBreak){
+    send_to_inverter(INVERSOR_TX_ID, DC_pwm_1, IsBreak);
+}
+
+// Sends Data to Motor Controller 2
+inline void motor_can:: send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak){
+    send_to_inverter(INVERSOR_TX_ID_2, DC_pwm_2, IsBreak);
+}
+
 // Sends Data to Motor Controller
-inline void motor_can:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, bool IsBreak, bool IsReverse ){    
+inline void motor_can:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, bool IsBreak ){    
     IsBreak=0; // DON'T use Break while using power source (only with batteries).
     
     CANMessage inverter_tx_msg;     // Creates Can message
@@ -159,16 +169,18 @@ inline void motor_can:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm,
 
 }
 
-// Sends Data to Motor Controller 1
-inline void motor_can:: send_to_inverter_1(uint16_t DC_pwm_1, bool IsBreak, bool IsReverse ){
-    send_to_inverter(INVERSOR_TX_ID, DC_pwm_1, IsBreak, IsReverse);
+/*==========================================  RECEIVE DATA ==========================================*/
+// Receives Data from Motor Controller 1
+inline Rx_struct motor_can:: receive_from_inverter_1(){
+    Rx_struct Datafield_1 =receive_from_inverter(INVERSOR_RX_ID);
+    return Datafield_1;
 }
 
-// Sends Data to Motor Controller 2
-inline void motor_can:: send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak, bool IsReverse ){
-    send_to_inverter(INVERSOR_TX_ID_2, DC_pwm_2, IsBreak, IsReverse);
+// Receives Data from Motor Controller 2
+inline Rx_struct motor_can:: receive_from_inverter_2(){
+    Rx_struct Datafield_2 =receive_from_inverter(INVERSOR_RX_ID_2);
+    return Datafield_2;
 }
-
 
 // Receives Data FROM Motor Controller
 inline Rx_struct motor_can:: receive_from_inverter(unsigned int Inverter_Id){
@@ -210,19 +222,8 @@ inline Rx_struct motor_can:: receive_from_inverter(unsigned int Inverter_Id){
     return Datafield;
 }
 
-// Receives Data from Motor Controller 1
-inline Rx_struct motor_can:: receive_from_inverter_1(){
-    Rx_struct Datafield_1 =receive_from_inverter(INVERSOR_RX_ID);
-    return Datafield_1;
-}
 
-// Receives Data from Motor Controller 2
-inline Rx_struct motor_can:: receive_from_inverter_2(){
-    Rx_struct Datafield_2 =receive_from_inverter(INVERSOR_RX_ID_2);
-    return Datafield_2;
-}
-
-
+/*==========================================  PRINT DATA ==========================================*/
 inline void motor_can::Print_Datafields(){
     Print_Datafield(1, Datafield_inv1);
     Print_Datafield(2, Datafield_inv2);

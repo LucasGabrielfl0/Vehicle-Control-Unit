@@ -38,7 +38,7 @@ bool Error_Temperature(int16_t Temp_motor, int16_t Temp_controlller);
 
 
 /*======================================== CLASS ========================================*/
-class control_systems {
+class ControlSystem {
     private:
     // Atributes
     bool Error_APPS;
@@ -55,18 +55,18 @@ class control_systems {
 
     // Constructors
     public:
-    control_systems();
+    ControlSystem();
 };
 
 /*======================================== Constructors ========================================*/
-inline control_systems::control_systems(){
+inline ControlSystem::ControlSystem(){
 
 };
 
 
 /*======================================== VECELOCITY CONTROL ==================================*/
 // Apps_16b= Accel. Pedal signal scaled [0 = Min travel | 65535 = Max travel]
-inline Velocity_struct control_systems::control_test(uint16_t Apps_1, uint16_t Apps_2, uint16_t BSE_sensor, uint16_t Steering_dg){
+inline Velocity_struct ControlSystem::control_test(uint16_t Apps_1, uint16_t Apps_2, uint16_t BSE_sensor, uint16_t Steering_dg){
     Velocity_struct Velocity_Wheels;
     uint16_t Apps_val;
     bool Error_Apps, Error_BSE, Error_Temp;
@@ -94,7 +94,7 @@ inline Velocity_struct control_systems::control_test(uint16_t Apps_1, uint16_t A
 
 /*========== ACCELERATION PEDAL PLAUSIBILITY CHECK ==========*/
 // Checks if there's a discrepancy bigger than 10%, for longer than 100 ms
-inline bool control_systems::APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2){
+inline bool ControlSystem::APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2){
     if ( abs(Apps_1 - Apps_2) > (0.1 * max(Apps_1, Apps_2)) ){
         if(AppsError_flag == 0) { //Starts Counting
             Error_Start_Time = millis(); 
@@ -117,7 +117,7 @@ inline bool control_systems::APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2){
 
 /*========== BREAK PEDAL PLAUSIBILITY CHECK ==========*/
 // Checks if the Accel. and Break Were both pressed at the same time
-inline bool control_systems::BSE_Error_check(uint16_t Apps_val, uint16_t Break_val){    
+inline bool ControlSystem::BSE_Error_check(uint16_t Apps_val, uint16_t Break_val){    
     //If APPS >= 25% of pedal travel and Break is pressed, stops the car 
     if ( (Apps_val >= 0.25*PEDAL_MAX) and (Break_val >= 0.02*PEDAL_MAX) ){
         Error_BPPC=1;

@@ -15,20 +15,20 @@
 #include <cstdint>
 #include "motor_can.h"
 
-inline void Telemetry_Test(float val1, int val2, int val3);
+inline void Telemetry_Test(uint16_t val1, float val2, float val3);
 inline void Telemetry_Print(Rx_struct Motor);
 
 
 
 /*==================================  TEST ==================================*/
 //test Telemetry graphs with apps sensors [so you cant test without the motor]
-inline void Telemetry_Test(float val1, int val2, int val3){
+inline void Telemetry_Test(uint16_t val1, float val2, float val3){
     Rx_struct Rx_apps;
     
-    Rx_apps.Supply_Voltage= 3*val1;
+    Rx_apps.Supply_Voltage= 3*val3;
     Rx_apps.Temp_Controller= val2;
     Rx_apps.Temp_motor= val3;
-    Rx_apps.RPM=val2*1000;
+    Rx_apps.RPM=val1;
     Rx_apps.rx_PWM=val2;
     Rx_apps.Current=val2;
 

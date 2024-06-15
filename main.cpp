@@ -67,7 +67,8 @@ PedalSensor APPS_2(APPS2_PIN, APPS2_VMIN, APPS2_VMAX);
 
 Steering_Wheel_Sensor Steering_sensor (Steering_WHEEL_PIN, STEERING_VMIN, STEERING_VMAX);
 
-
+// 
+ControlSystem Motor_Control;
 //MPU9250 Sensor (Gyroscope, Accelerometer, and Temperature)
 //mpu
 
@@ -78,7 +79,7 @@ int main()
     can1.set_CAN();
 
     uint16_t Apps1{0}, Apps2{0};    // Pedal Travel [0 to 16b]
-    uint16_t Bse{0};
+    uint16_t Break_sensor{0};
     
     float Steering_dg{0};
     bool Error_flag;
@@ -91,9 +92,9 @@ int main()
     while (true) {
 
         //Read all Angle Sensors connected to the VCU
-        Apps1 = APPS_1.read_angle();
-        Apps2 = APPS_1.read_angle();
-        Bse = BSE.read_angle();
+        Apps1 = APPS_1.read_pedal();
+        Apps2 = APPS_1.read_pedal();
+        Break_sensor = BSE.read_pedal();
         Steering_dg = Steering_sensor.read_angle();
 
         //Read MPU9250
@@ -110,7 +111,7 @@ int main()
 
 
     //-------------------------------- Control --------------------------------------------//
-        // Wheel_Velocity = control_test(Apps_1, Apps_2, Bse, Steering_dg)
+        Wheel_Velocity = Motor_Control.control_test(Apps1, Apps2, Break_sensor, Steering_dg);
 
 
     //----------------------------- Send data to Inverters ------------------------------//
@@ -125,7 +126,7 @@ int main()
         //Datalogger
 
         //Telemetry
-        // Telemetry_Test(APPS_dg.s1, Steering_dg, Steering_dg);
+        // Telemetry_Test(Apps_1, Steering_dg, 10.0);
         // Telemetry_Print(Rx_apps);
 
         //Print voltage Read
