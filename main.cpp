@@ -31,11 +31,11 @@
 #define BSE_VMAX                3.0        //BSE Sensors Minimum input voltage
 
 //APPS (Accelerator Pedal Position Sensor) Parameters
-#define APPS1_VMIN              0.425      //APPS1 Minimum input voltage
-#define APPS1_VMAX              3.021      //APPS1 Maximum input voltage
+#define APPS1_VMIN              0.28      //APPS1 Minimum input voltage
+#define APPS1_VMAX              3.2      //APPS1 Maximum input voltage
 
-#define APPS2_VMIN              0.4        //APPS2 Minimum input voltage
-#define APPS2_VMAX              2.9        //APPS2 Maximum input voltage
+#define APPS2_VMIN              0.28        //APPS2 Minimum input voltage
+#define APPS2_VMAX              3.2        //APPS2 Maximum input voltage
 
 /*===================================== COMMUNICATION PORTS (STM32 F746ZG) =====================================*/
 
@@ -91,9 +91,10 @@ int main()
 
         //Read all Angle Sensors connected to the VCU
         Apps1 = APPS_1.read_pedal();
-        Apps2 = APPS_1.read_pedal();
-        Break_sensor = BSE.read_pedal();
-        Steering_dg = Steering_sensor.read_angle();
+        // APPS_1.Voltage_print();
+        // Apps2 = APPS_2.read_pedal();
+        // Break_sensor = BSE.read_pedal();
+        // Steering_dg = Steering_sensor.read_angle();
 
         //Read MPU9250
         //MPU9250: Accelerometer
@@ -106,7 +107,7 @@ int main()
     //------------------------------ Receive Data from Inverters ---------------------------//
         // Inv1_data=can1.receive_from_inverter();
         // Inv2_data=can1.receive_from_inverter_2();
-
+        Motor_Control.Motor_Error_Check(Inv1_data, Inv2_data);
 
     //-------------------------------- Control --------------------------------------------//
         // Wheel_Velocity = Motor_Control.control_test(Apps1, Apps2, Break_sensor, Steering_dg);
@@ -131,8 +132,8 @@ int main()
         //Print voltage Read
         APPS_1.Voltage_print();
         Print_Velocity(Wheel_Velocity.RPM_W1);
-        Print_Sensors(Apps1,  Apps2, Break_sensor, Steering_dg);
-        print_all2();
+        Print_Sensors(Apps1,  APPS_1.read_angle(), Break_sensor, Steering_dg);
+
         wait_us(10e5);
 
     }

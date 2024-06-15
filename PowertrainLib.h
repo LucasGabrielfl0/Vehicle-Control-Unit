@@ -18,10 +18,5 @@
 #include "Powertrain_Lib/control_system.h"              // Control with Electronic Differential
 #include "Powertrain_Lib/telemetry_system.h"            // Sends Data to Monitors and external Devices
 
-inline void print_all2(){
-
-    printf("hmmm");
-}
-
 
 #endif

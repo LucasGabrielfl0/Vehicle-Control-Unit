@@ -21,7 +21,7 @@
 #define INPUT_MIN       4500    // Minimum 16bit Input the sensor should read
 #define INPUT_MAX       48000   // Maximum 16bit Input the sensor should read
 
-#define MAX_NOISE       0.1     // Expected Noise [Voltage variation] in ADC read
+#define MAX_NOISE       0.09     // Expected Noise [Voltage variation] in ADC read
 
 //Steering Wheel Parameters
 #define Vol_ang_min     -80     //Minimum value for the Steering Wheel angle (Degrees)
@@ -33,6 +33,7 @@
 //Ultility Functions
 double millis();
 long map(long Variable, float in_min, float in_max, float out_min, float out_max);
+uint16_t map_u16 (float Variable, float in_min, float in_max, uint16_t out_min, uint16_t out_max);
 void Calibrate_ADC();
 
 /*================================== CLASSES ==================================*/
@@ -62,7 +63,6 @@ class angle_sensor{
 class PedalSensor: public angle_sensor{
     private:
     uint16_t Pedal_pos;     //Pedal Position [0% = 0 | 100% = 16b]
-    
     public:
     // Methods:
     uint16_t read_pedal();  //Reads current Pedal Position
@@ -103,9 +103,16 @@ inline float angle_sensor:: read_angle(){
     float New_ADC = ADC_Pin.read_voltage();
     
     // If variation is bigger than the expected noise, updates measurement 
-    if(abs(New_ADC - Current_ADC)> MAX_NOISE){
+    if(abs(New_ADC - Current_ADC) > MAX_NOISE){
         Current_ADC= New_ADC;
         Angle= map(Current_ADC, Volt_min, Volt_max, Angle_min, Angle_max);
+    }
+    
+    if(abs(Angle)<10){
+        Angle=0;
+    }
+    if(abs(Angle)>75){
+        Angle=80;
     }
     return Angle;
 }
@@ -113,12 +120,22 @@ inline float angle_sensor:: read_angle(){
 // Reads the Pedal travel [0% = 0 | 100% = 16b]
 inline uint16_t PedalSensor:: read_pedal(){
     float New_ADC = ADC_Pin.read_voltage();
-    
+
+    // printf("\n NEW: %.2f , Current: %.2f, dif: %.2f\n",New_ADC, Current_ADC,abs(New_ADC - Current_ADC));
     // If variation is bigger than the expected noise, updates measurement 
-    if(abs(New_ADC - Current_ADC)> MAX_NOISE){
+    if(abs(New_ADC - Current_ADC) > MAX_NOISE){
         Current_ADC= New_ADC;
-        Pedal_pos= map(Current_ADC, Volt_min, Volt_max, PEDAL_MIN, PEDAL_MAX);
+        Pedal_pos= map_u16(Current_ADC, Volt_min, Volt_max, PEDAL_MIN, PEDAL_MAX);
     }
+
+    // Just Saturates above and below certain value
+    if(Pedal_pos < PEDAL_MIN+100){
+        Pedal_pos = PEDAL_MIN;
+    }
+    if(Pedal_pos > PEDAL_MAX-100){
+        Pedal_pos = PEDAL_MAX;
+    }
+
     return Pedal_pos;
 }
 
@@ -149,6 +166,11 @@ inline long map (long Variable, float in_min, float in_max, float out_min, float
     long Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
     return Mapped_Variable;
 }
+inline uint16_t map_u16 (float Variable, float in_min, float in_max, uint16_t out_min, uint16_t out_max) {
+    uint16_t Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    return Mapped_Variable;
+}
+
 
 
 inline void Calibrate_ADC(){

@@ -4,8 +4,7 @@
  * Group Area: Powertrain
 
  * File for the Digital (and Differential) Control of the BLDC Nova 15 Motor 
- * 
- * The Open Loop control is used for tests with the motor
+ * using the MST 400-200 Motor controller
 
  ***/
 
@@ -16,10 +15,11 @@
 #include <cstdint>
 #include <time.h>
 #include "adc_sensors.h"
+#include "can_communication.h"
 
 /*==================================== SAFETY PARAMETERS ====================================*/
-#define MAX_MST_TEMPRATURE          40         // Motor Controller Max temperature [°C]
-#define MAX_NOVA15_TEMPERATURE      40         // Motor Max temperature [°C]
+#define MAX_TM      40         // Motor Controller Max temperature [°C]
+#define MAX_TC      40         // Motor Max temperature [°C]
 
 /*==================================== MECHANIC PARAMETERS ====================================*/
 #define PI          3.14159265358979323846      // PI constant 
@@ -43,6 +43,8 @@ class ControlSystem {
     // Atributes
     bool Error_APPS{0};
     bool Error_BPPC{0};
+    bool Error_Motor{0};
+
     bool AppsError_flag{0};
     bool ERROR_State{0};
     float Error_Start_Time{0};
@@ -51,6 +53,7 @@ class ControlSystem {
     // Methods
     bool APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2);
     bool BSE_Error_check(uint16_t Apps_val, uint16_t Break_val);
+    void Motor_Error_Check(Rx_struct Inverter_1, Rx_struct Inverter_2);
     Velocity_struct control_test(uint16_t Apps_1, uint16_t Apps_2, uint16_t BSE_sensor, uint16_t Steering_dg);
 
     // Constructors
@@ -87,12 +90,15 @@ inline Velocity_struct ControlSystem::control_test(uint16_t Apps_1, uint16_t App
         Velocity_Wheels = get_Differential(Steering_dg, Apps_val);
     }
 
+    Velocity_Wheels.RPM_W1=Apps_1;
+    Velocity_Wheels.RPM_W2=Apps_1;
+
     // Return Velocity in each wheel
     return Velocity_Wheels;
 }
 
 
-/*========== ACCELERATION PEDAL PLAUSIBILITY CHECK ==========*/
+/*================================== ACCELERATION PEDAL PLAUSIBILITY CHECK ==================================*/
 // Checks if there's a discrepancy bigger than 10%, for longer than 100 ms
 inline bool ControlSystem::APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2){
     if ( abs(Apps_1 - Apps_2) > (0.1 * max(Apps_1, Apps_2)) ){
@@ -115,7 +121,7 @@ inline bool ControlSystem::APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2){
     return Error_APPS;
 }
 
-/*========== BREAK PEDAL PLAUSIBILITY CHECK ==========*/
+/*====================================== BREAK PEDAL PLAUSIBILITY CHECK ======================================*/
 // Checks if the Accel. and Break Were both pressed at the same time
 inline bool ControlSystem::BSE_Error_check(uint16_t Apps_val, uint16_t Break_val){    
     //If APPS >= 25% of pedal travel and Break is pressed, stops the car 
@@ -130,18 +136,26 @@ inline bool ControlSystem::BSE_Error_check(uint16_t Apps_val, uint16_t Break_val
 
     return Error_BPPC;
 }
-
+/*====================================== MOTOR/MOTOR CONTROLLER ERROR CHECK ======================================*/
+// Checks if the motor sent 
+inline void ControlSystem::Motor_Error_Check(Rx_struct Inverter_1, Rx_struct Inverter_2){
+    int16_t Tm_1 = Inverter_1.Temp_motor; 
+    int16_t Tm_2 = Inverter_2.Temp_motor; 
+    int16_t Tc_1 = Inverter_1.Temp_Controller;
+    int16_t Tc_2 = Inverter_2.Temp_Controller;
+    
+    // if Temperature is above limit, shuts the car down
+    if( (Tm_1> MAX_TM) || (Tm_2> MAX_TM) || (Tc_1> MAX_TC) || (Tc_2> MAX_TC) ){
+        Error_Motor = 1;
+    } 
+    else {
+        Error_Motor = 0;
+    }    
+}
 
 /*=========================================== Functions ===========================================*/
 
-/*============================== Temperature Shutdown ==============================*/
-// Interrupt for either motor controller or motor above temperature limit
-inline bool Error_Temperature(int16_t Temp_motor, int16_t Temp_controlller){
-
-    return 0;
-}
-
-/*============================== DIFFERENTIAL ==============================*/
+/*=========================================== DIFFERENTIAL ===========================================*/
 // Calculates the Velocity [in RPM] of each wheel during a turn, W1 = [LEFT WHEEL] || W2 = [RIGHT WHEEL]
 inline Velocity_struct get_Differential(float Steering_dg, uint16_t Wv_rpm){
     float Ack_rad;
@@ -165,8 +179,6 @@ inline Velocity_struct get_Differential(float Steering_dg, uint16_t Wv_rpm){
 
     return Differential_vel;
 }
-
-
 
 
 #endif
