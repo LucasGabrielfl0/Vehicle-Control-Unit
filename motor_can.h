@@ -31,8 +31,7 @@
 #define SENSOR_MIN_OFFSET_5V 6650  // Para 5 volts utilizando uma fonte debancada
 #define SENSOR_MAX_OFFSET_5V 65535
 
-
-/*===================================== CONTROL =====================================*/
+/*==================================== SAFETY PARAMETERS ====================================*/
 #define MAX_CURRENT_LIMIT       10          // Max Phase Current in the motor [A]
 #define MAX_RPM_LIMIT           4500        // Max Velocity of the motor [RPM] 
 

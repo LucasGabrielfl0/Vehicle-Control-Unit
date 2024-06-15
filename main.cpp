@@ -91,36 +91,33 @@ int main()
     while (true) {
 
         //Read all Angle Sensors connected to the VCU
-        Apps1=APPS_1.read_angle();
-        Apps2=APPS_1.read_angle();
+        Apps1 = APPS_1.read_angle();
+        Apps2 = APPS_1.read_angle();
         Bse = BSE.read_angle();
         Steering_dg = Steering_sensor.read_angle();
 
         //Read MPU9250
         //MPU9250: Accelerometer
 
-
         //MPU9250: Angular Velocity         
-
 
         //MPU9250: Temperature       
 
-
-        //Velocity Sensor 
     
-        //Receive Data from Inverters
+    //------------------------------ Receive Data from Inverters ---------------------------//
         // Inv1_data=can1.receive_from_inverter();
         // Inv2_data=can1.receive_from_inverter_2();
 
 
-        //Control
-        // Wheel_Velocity = control_test(Apps_1, Apps_2, BSE_sensor, Steering_dg)
-        // Wheel_Velocity = get_PWM(APPS_dg.s1, Steering_dg, Error_flag);
-        // Wheel_Velocity = get_PWM(APPS_dg.s1, 0, Error_flag);
-        
-        //Send data to Inverters
-        // can1.send_to_inverter_1(Wheel_Velocity.RPM_W1, false,false);
-        // can1.send_to_inverter_2(Wheel_Velocity.RPM_W2, false,false);
+    //-------------------------------- Control --------------------------------------------//
+        // Wheel_Velocity = control_test(Apps_1, Apps_2, Bse, Steering_dg)
+
+
+    //----------------------------- Send data to Inverters ------------------------------//
+        // can1.send_to_inverter_1(Wheel_Velocity.RPM_W1);
+        // can1.send_to_inverter_2(Wheel_Velocity.RPM_W2);
+
+
 
 
     /*================================== Print/ Send Data ==================================*/

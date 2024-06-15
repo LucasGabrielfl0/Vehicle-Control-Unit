@@ -38,7 +38,7 @@ void Calibrate_ADC();
 //class for Acelleration Pedal, break Pedal, and Steering wheel
 class angle_sensor{
     //Atributes
-    private:
+    protected:
     float Angle;        // Angle's value in Degree
     float Volt_min;     // Sensor's Minimum voltage measurement
     float Volt_max;     // Sensor's Maximum voltage measurement
@@ -50,18 +50,22 @@ class angle_sensor{
     public:
     float read_angle();             //
     uint16_t read_scaled_u16();     //
-    bool Input_Error_Check();       //tests if ADC value (16bit) is within bounds of sensor
-    void Voltage_print();           //prints raw voltage
+    bool Input_Error_Check();       // tests if ADC value (16bit) is within bounds of sensor
+    void Voltage_print();           // prints raw voltage
 
     //Constructors:
     angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max);
 };
 
 class PedalSensor: public angle_sensor{
-    uint16_t Pedal_pos;
+    private:
+    uint16_t Pedal_pos;     //Pedal Position [0% = 0 | 100% = 16b]
     
-    //Constructors:
     public:
+    // Methods:
+    uint16_t read_pedal();  //Reads current Pedal Position
+    
+    // Constructors:
     PedalSensor(PinName adc_Pin, float _volt_min, float _volt_max);
 };
 
@@ -72,6 +76,7 @@ class Steering_Wheel_Sensor: public angle_sensor{
 };
 
 /*======================================== Constructors ========================================*/
+
 //Angle Sensor
 inline angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max)
 :ADC_Pin{adc_Pin,VREF_ADC}, Volt_min{_volt_min},Volt_max{_volt_max}, Angle_min{_angle_min}, Angle_max{_angle_max}{
@@ -82,24 +87,33 @@ inline angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_m
 inline PedalSensor::PedalSensor(PinName adc_Pin, float _volt_min, float _volt_max)
     :angle_sensor{adc_Pin, _volt_min, _volt_max, PEDAL_MIN, PEDAL_MAX}{}
 
-
 //Steering Wheel Sensor
 inline Steering_Wheel_Sensor::Steering_Wheel_Sensor(PinName adc_Pin, float _volt_min, float _volt_max)
     :angle_sensor{adc_Pin, _volt_min, _volt_max, Vol_ang_min, Vol_ang_max}{}
 
 
+
 /*======================================== Methods ========================================*/
-//Reads the ADC pin and returns the angle value in degrees 
+
+// Reads the ADC pin and returns the angle value in degrees 
 inline float angle_sensor:: read_angle(){
     Angle=map( ADC_Pin.read_u16(), Volt_min, Volt_max, Angle_min, Angle_max);
     return Angle;
 }
 
-inline uint16_t angle_sensor:: read_scaled_u16(){
-    uint16_t u1= map( ADC_Pin.read_u16(), Volt_min, Volt_max, 0, 65535);
-    return Angle;    
+// Reads the Pedal travel [0% = 0 | 100% = 16b]
+inline uint16_t PedalSensor:: read_pedal(){
+    Pedal_pos= map(ADC_Pin.read_u16(), Volt_min, Volt_max, PEDAL_MIN, PEDAL_MAX);
+    return Pedal_pos;
 }
 
+// Probably useless
+inline uint16_t angle_sensor:: read_scaled_u16(){
+    uint16_t u1= map( ADC_Pin.read_u16(), Volt_min, Volt_max, 0, 65535);
+    return u1;    
+}
+
+// 
 inline void angle_sensor:: Voltage_print(){
     uint16_t Voltage_16bit=ADC_Pin.read_u16();
     ADC_Pin.set_reference_voltage(3.3);
