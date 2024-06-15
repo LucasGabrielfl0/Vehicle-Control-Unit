@@ -42,11 +42,11 @@
 struct Rx_struct{
     //Receiver Datafield in CAN 2.0 standard (In order)
     uint8_t     Msg_Counter{0};        //[0]
-    float       Input_Voltage{0};      //[1]
-    uint8_t     Temp_Controller{0};
-    uint8_t     Temp_motor{0};
+    float       Supply_Voltage{0};      //[1]
+    int16_t     Temp_Controller{0};
+    int16_t     Temp_motor{0};
     uint16_t    RPM{0};
-    uint16_t    rx_PWM{0};
+    float       rx_PWM{0};
     uint8_t     Current{0};
 };
 
@@ -81,13 +81,10 @@ class motor_can:public CAN{
     void send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm_1, bool IsBreak, bool IsReverse );
     void send_to_inverter_1(uint16_t DC_pwm_1, bool IsBreak, bool IsReverse );
     void send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak, bool IsReverse );
-    
-//    void send_to_inverter_3(uint16_t DC_pwm_2, bool IsThrottle, bool IsReverse );
-
-
 
     // Receive data from both motor controllers
-    Rx_struct receive_from_inverter();
+    Rx_struct receive_from_inverter(unsigned int Inverter_Id);
+    Rx_struct receive_from_inverter_1();
     Rx_struct receive_from_inverter_2();
     
     //print received data
@@ -118,14 +115,12 @@ inline void motor_can:: reset_can() {
     filter(0, 0, CANStandard); // reconfigurar o filtro para receber todas as mensagens
 }
 
-
 //Tests if CAN can send messages
 //Creates empy CAN message and tests if it was sent
 inline bool motor_can:: baud_test(){
     CANMessage msg;
     return write(msg);    
 }
-
 
 //Tests if CAN can read messages
 inline bool motor_can::is_can_active(){
@@ -176,8 +171,8 @@ inline void motor_can:: send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak, bool
 }
 
 
-inline Rx_struct motor_can:: receive_from_inverter() {
-    //Definir mensagem CAN a ser recebida
+// Receives Data FROM Motor Controller
+inline Rx_struct motor_can:: receive_from_inverter(unsigned int Inverter_Id){
     Rx_struct Datafield;
 
     //Aux variables
@@ -186,18 +181,18 @@ inline Rx_struct motor_can:: receive_from_inverter() {
 
     CANMessage inverter_rx_msg;
     inverter_rx_msg.len = 8;
-    if(is_can_active()) {
+    if(is_can_active() ) {
         if(read(inverter_rx_msg)){
         // Aguardar a recepção da mensagem do inversor
-            if(inverter_rx_msg.id == INVERSOR_RX_ID) {
+            if(inverter_rx_msg.id == Inverter_Id) {
                 Datafield.Msg_Counter = inverter_rx_msg.data[0] & 0xF;
                 
                 Voltage_Hb = inverter_rx_msg.data[0] >> 4;
                 Voltage_int = (Voltage_Hb<<8) | inverter_rx_msg.data[1];
-                Datafield.Input_Voltage = Voltage_int/10.0f;
+                Datafield.Supply_Voltage = Voltage_int/10.0f;
 
                 Datafield.Temp_Controller = inverter_rx_msg.data[2]-100; //Range[0-255],Temp Range [-100°C to 155°C]
-                Datafield.Temp_motor = inverter_rx_msg.data[3]-100; //Range[0-255],Temp Range [-100°C to 155°C]
+                Datafield.Temp_motor = inverter_rx_msg.data[3]-100;     //Range[0-255],Temp Range [-100°C to 155°C]
                 
                 Datafield.RPM= (inverter_rx_msg.data[5]<< 8) | inverter_rx_msg.data[4] ;
                 
@@ -214,48 +209,18 @@ inline Rx_struct motor_can:: receive_from_inverter() {
     
     Datafield_inv1 =Datafield;
     return Datafield;
-
 }
 
-inline Rx_struct motor_can:: receive_from_inverter_2() {
-    //Definir mensagem CAN a ser recebida
-    Rx_struct Datafield;
+// Receives Data from Motor Controller 1
+inline Rx_struct motor_can:: receive_from_inverter_1(){
+    Rx_struct Datafield_1 =receive_from_inverter(INVERSOR_RX_ID);
+    return Datafield_1;
+}
 
-    //Aux variables
-    int Voltage_Hb; //voltage High byte
-    int Voltage_int;
-
-    CANMessage inverter_rx_msg2;
-    inverter_rx_msg2.len = 8;
-    if(is_can_active()) {
-        if(read(inverter_rx_msg2)){
-        // Aguardar a recepção da mensagem do inversor
-            if(inverter_rx_msg2.id == INVERSOR_RX_ID_2) {
-                Datafield.Msg_Counter = inverter_rx_msg2.data[0] & 0xF;
-                
-                Voltage_Hb = inverter_rx_msg2.data[0] >> 4;
-                Voltage_int = (Voltage_Hb<<8) | inverter_rx_msg2.data[1];
-                Datafield.Input_Voltage = Voltage_int/10.0f;
-
-                Datafield.Temp_Controller = inverter_rx_msg2.data[2]-100; //Range[0-255],Temp Range [-100°C to 155°C]
-                Datafield.Temp_motor = inverter_rx_msg2.data[3]-100; //Range[0-255],Temp Range [-100°C to 155°C]
-                
-                Datafield.RPM= (inverter_rx_msg2.data[5]<< 8) | inverter_rx_msg2.data[4] ;
-                
-                Datafield.rx_PWM=(inverter_rx_msg2.data[6]/255.0f)*100;
-                Datafield.Current = inverter_rx_msg2.data[7];            
-            
-            }
-        }
-    }
-    else{
-        printf("Fail to stablish CAN connection. Reseting...\n");
-        reset_can(); 
-    }
-    
-    Datafield_inv2 =Datafield;
-    return Datafield;
-
+// Receives Data from Motor Controller 2
+inline Rx_struct motor_can:: receive_from_inverter_2(){
+    Rx_struct Datafield_2 =receive_from_inverter(INVERSOR_RX_ID_2);
+    return Datafield_2;
 }
 
 
@@ -266,10 +231,22 @@ inline void motor_can::Print_Datafields(){
 }
 
 inline void Print_Datafield(int Num, Rx_struct Inv){
-    printf("\r\n\t[CAN] Inverter %d: Volt=%.1f V, T_Ctrl= %d°C ,T_Motor = %d°C , RPM = %d, PWM = %d (%.2f %%), Ic= %d A",
-    Num, Inv.Input_Voltage ,Inv.Temp_Controller ,
+    printf("\r\n\t[CAN] Inverter %d: Volt=%.1f V, T_Ctrl= %d°C ,T_Motor = %d°C , RPM = %d, PWM = %.2f (%.2f %%), Ic= %d A",
+    Num, Inv.Supply_Voltage ,Inv.Temp_Controller ,
          Inv.Temp_motor    ,Inv.RPM ,
          Inv.rx_PWM, (Inv.rx_PWM/255.0f)*100,Inv.Current );
+}
+
+inline void Print_Datafield_3(Rx_struct Motor_Data){
+    printf("\r\n\t[CAN]Volt=%.1f V , RPM = %d Ic= %d A", 
+    Motor_Data.Supply_Voltage , Motor_Data.RPM , Motor_Data.Current );
+    
+    // Dc Pwm
+    printf(" PWM = %.2f , (%.2f %%)", Motor_Data.rx_PWM, (Motor_Data.rx_PWM/65535.0)*100.0);
+
+    // Temperature
+    printf(" Tc= %d°C , Tm = %d°C", Motor_Data.Temp_Controller , Motor_Data.Temp_motor);
+
 }
 
 #endif

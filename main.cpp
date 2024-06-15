@@ -12,17 +12,34 @@
 #include "motor_can.h"
 #include "control.h"
 #include "angle_sensor.h"
+#include "telemetry_system.h"
 #include <cstdint>
 // main() runs in its own thread in the OS
 
-/*===================================== PORTS (STM32 F746ZG)=====================================*/
+/*===================================== ADC PORTS (STM32 F746ZG) =====================================*/
 #define Steering_WHEEL_PIN      PC_2
 #define BSE_PIN                 PA_0
 #define APPS1_PIN               PF_4
 #define APPS2_PIN               PF_4
 #define APPS_PIN_OUT            PA_5
 
-/*===================================== COMMUNICATION (STM32 F746ZG)=====================================*/
+/*===================================== ADC INPUT VOLTAGES  =====================================*/
+//Steering Wheel Parameters
+#define STEERING_VMIN           0.425   //Steering Wheel Sensors Minimum input voltage
+#define STEERING_VMAX           2.825   //Steering Wheel Sensors Sensors Maximum input voltage
+
+//BSE (Break System Enconder) Parameters
+#define BSE_VMIN                0.3        //BSE Sensors Minimum input voltage
+#define BSE_VMAX                3.0        //BSE Sensors Minimum input voltage
+
+//APPS (Accelerator Pedal Position Sensor) Parameters
+#define APPS1_VMIN              0.425      //APPS1 Minimum input voltage
+#define APPS1_VMAX              3.021      //APPS1 Maximum input voltage
+
+#define APPS2_VMIN              0.4        //APPS2 Minimum input voltage
+#define APPS2_VMAX              2.9        //APPS2 Maximum input voltage
+
+/*===================================== COMMUNICATION PORTS (STM32 F746ZG) =====================================*/
 
 #define CAN1_TX                 PC_2
 #define CAN1_RX                 PA_0
@@ -40,13 +57,16 @@
 
 
 /*===================================== Objetcs =====================================*/
-//Communication
-motor_can can1(PA_11, PA_12, 1e6);
+// Communication
+motor_can can1(PA_11, PA_12, CAN_FREQUENCY);
 
-//Angle Sensors
-BSE_Sensor BSE (BSE_PIN);
-APP_Sensors APPS (APPS1_PIN ,APPS2_PIN, APPS_PIN_OUT);
-Steering_Wheel_Sensor Steering_sensor (Steering_WHEEL_PIN);
+// Control Sensors
+PedalSensor BSE(BSE_PIN, BSE_VMIN, BSE_VMAX);
+PedalSensor APPS_1(APPS1_PIN ,APPS1_VMIN, APPS1_VMAX);
+PedalSensor APPS_2(APPS2_PIN, APPS2_VMIN, APPS2_VMAX);
+
+Steering_Wheel_Sensor Steering_sensor (Steering_WHEEL_PIN, STEERING_VMIN, STEERING_VMAX);
+
 
 //MPU9250 Sensor (Gyroscope, Accelerometer, and Temperature)
 //mpu
@@ -57,21 +77,24 @@ int main()
     /*================================== INITIALIZATION ==================================*/
     can1.set_CAN();
 
-    //Constant Variables
-    float BSE_dg{0} ,Steering_dg{0};
+    uint16_t Apps1{0}, Apps2{0};    // Pedal Travel [0 to 16b]
+    uint16_t Bse{0};
+    
+    float Steering_dg{0};
     bool Error_flag;
+
     //Structs
     Rx_struct Inv1_data, Inv2_data;
-    APPS_struct APPS_dg;
     Velocity_struct Wheel_Velocity;
 
     /*================================== LOOP ==================================*/
     while (true) {
+
         //Read all Angle Sensors connected to the VCU
-        APPS_dg= APPS.read_APPS();
-        BSE_dg = BSE.read_angle();
+        Apps1=APPS_1.read_angle();
+        Apps2=APPS_1.read_angle();
+        Bse = BSE.read_angle();
         Steering_dg = Steering_sensor.read_angle();
-        
 
         //Read MPU9250
         //MPU9250: Accelerometer
@@ -91,6 +114,7 @@ int main()
 
 
         //Control
+        // Wheel_Velocity = control_test(Apps_1, Apps_2, BSE_sensor, Steering_dg)
         // Wheel_Velocity = get_PWM(APPS_dg.s1, Steering_dg, Error_flag);
         // Wheel_Velocity = get_PWM(APPS_dg.s1, 0, Error_flag);
         
@@ -98,24 +122,17 @@ int main()
         // can1.send_to_inverter_1(Wheel_Velocity.RPM_W1, false,false);
         // can1.send_to_inverter_2(Wheel_Velocity.RPM_W2, false,false);
 
+
+    /*================================== Print/ Send Data ==================================*/
+
         //Datalogger
 
         //Telemetry
+        // Telemetry_Test(APPS_dg.s1, Steering_dg, Steering_dg);
+        // Telemetry_Print(Rx_apps);
 
-
-        // Print:
-        printf("\n APPS:");
-        APPS.APPS1.Voltage_print();
-        printf("\n BSE:");
-
-        BSE.Voltage_print();
-
-        // printf("Apps1: %.2f, BSE: %.2f", APPS_dg.s1 ,BSE_dg);
-        // printf("\n ========");
-        //print Received Data
-        //can1.Print_Datafields();
-
-
+        //Print voltage Read
+        APPS_1.Voltage_print();
         wait_us(10e5);
 
     }
