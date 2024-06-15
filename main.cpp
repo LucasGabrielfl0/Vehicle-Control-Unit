@@ -10,39 +10,9 @@
 
 #include "mbed.h"
 #include <cstdint>
-
-/*
-#include "motor_can.h"
-#include "control.h"
-#include "angle_sensor.h"
-#include "telemetry_system.h"
-#include "Powertrain_Lib/cont.h"
-*/
-
 #include "PowertrainLib.h"
 
 // main() runs in its own thread in the OS
-
-/*
-#include "PowertrainLib.h"
-
-#include "ADC_sensors.h"
-#include "CAN_communication.h"
-#include "control_system.h"
-#include "telemetry_system.h"
-
-#include "Powertrain_Lib/ADC_sensors.h"
-#include "Powertrain_Lib/CAN_communication.h"
-#include "Powertrain_Lib/control_system.h"
-#include "Powertrain_Lib/telemetry_system.h"
-
-
-
-*/
-
-
-
-
 
 /*===================================== ADC PORTS (STM32 F746ZG) =====================================*/
 #define Steering_WHEEL_PIN      PC_2
