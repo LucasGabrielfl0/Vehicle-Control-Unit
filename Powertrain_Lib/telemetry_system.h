@@ -13,7 +13,7 @@
 #include "mbed.h"
 #include "CAN.h"
 #include <cstdint>
-#include "CAN_communication.h"
+#include "can_communication.h"
 
 inline void Telemetry_Test(uint16_t val1, float val2, float val3);
 inline void Telemetry_Print(Rx_struct Motor);

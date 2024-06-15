@@ -15,8 +15,8 @@
 #include "mbed.h"
 #include <cstdint>
 
-#include "Powertrain_Lib/ADC_sensors.h"
-#include "Powertrain_Lib/CAN_communication.h"
+#include "Powertrain_Lib/adc_sensors.h"
+#include "Powertrain_Lib/can_communication.h"
 #include "Powertrain_Lib/control_system.h"
 #include "Powertrain_Lib/telemetry_system.h"
 
