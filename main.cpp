@@ -9,12 +9,40 @@
  ***/
 
 #include "mbed.h"
+#include <cstdint>
+
+/*
 #include "motor_can.h"
 #include "control.h"
 #include "angle_sensor.h"
 #include "telemetry_system.h"
-#include <cstdint>
+#include "Powertrain_Lib/cont.h"
+*/
+
+#include "PowertrainLib.h"
+
 // main() runs in its own thread in the OS
+
+/*
+#include "PowertrainLib.h"
+
+#include "ADC_sensors.h"
+#include "CAN_communication.h"
+#include "control_system.h"
+#include "telemetry_system.h"
+
+#include "Powertrain_Lib/ADC_sensors.h"
+#include "Powertrain_Lib/CAN_communication.h"
+#include "Powertrain_Lib/control_system.h"
+#include "Powertrain_Lib/telemetry_system.h"
+
+
+
+*/
+
+
+
+
 
 /*===================================== ADC PORTS (STM32 F746ZG) =====================================*/
 #define Steering_WHEEL_PIN      PC_2
@@ -61,14 +89,14 @@
 motor_can can1(PA_11, PA_12, CAN_FREQUENCY);
 
 // Control Sensors
-PedalSensor BSE(BSE_PIN, BSE_VMIN, BSE_VMAX);
-PedalSensor APPS_1(APPS1_PIN ,APPS1_VMIN, APPS1_VMAX);
-PedalSensor APPS_2(APPS2_PIN, APPS2_VMIN, APPS2_VMAX);
+PedalSensor BSE(BSE_PIN, BSE_VMIN, BSE_VMAX);                                           // Break Pedal
+PedalSensor APPS_1(APPS1_PIN ,APPS1_VMIN, APPS1_VMAX);                                  // Accel. Pedal 1
+PedalSensor APPS_2(APPS2_PIN, APPS2_VMIN, APPS2_VMAX);                                  // Accel. Pedal 2
+SteeringSensor Steering_sensor (Steering_WHEEL_PIN, STEERING_VMIN, STEERING_VMAX);      // Steering Wheel sensor
 
-Steering_Wheel_Sensor Steering_sensor (Steering_WHEEL_PIN, STEERING_VMIN, STEERING_VMAX);
+// Velocity Control
+ControlSystem Motor_Control;    //
 
-// 
-ControlSystem Motor_Control;
 //MPU9250 Sensor (Gyroscope, Accelerometer, and Temperature)
 //mpu
 
@@ -111,7 +139,8 @@ int main()
 
 
     //-------------------------------- Control --------------------------------------------//
-        Wheel_Velocity = Motor_Control.control_test(Apps1, Apps2, Break_sensor, Steering_dg);
+        // Wheel_Velocity = Motor_Control.control_test(Apps1, Apps2, Break_sensor, Steering_dg);
+        Wheel_Velocity = Motor_Control.control_test(Apps1, Apps1, 0, 0);
 
 
     //----------------------------- Send data to Inverters ------------------------------//
@@ -131,6 +160,9 @@ int main()
 
         //Print voltage Read
         APPS_1.Voltage_print();
+        Print_Velocity(Wheel_Velocity.RPM_W1);
+        Print_Sensors(Apps1,  Apps2, Break_sensor, Steering_dg);
+        print_all2();
         wait_us(10e5);
 
     }

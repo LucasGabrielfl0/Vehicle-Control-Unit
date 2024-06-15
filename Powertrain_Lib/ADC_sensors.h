@@ -8,8 +8,8 @@
  * as well the methods to read and map all the angle related sensors
  ***/
 
-#ifndef _ANGLE_SENSOR_H_
-#define _ANGLE_SENSOR_H_
+#ifndef _ADC_SENSORS_H_
+#define _ADC_SENSORS_H_
 
 #include "mbed.h"
 #include <cstdint>

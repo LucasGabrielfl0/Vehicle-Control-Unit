@@ -13,7 +13,7 @@
 #include "mbed.h"
 #include "CAN.h"
 #include <cstdint>
-#include "motor_can.h"
+#include "CAN_communication.h"
 
 inline void Telemetry_Test(uint16_t val1, float val2, float val3);
 inline void Telemetry_Print(Rx_struct Motor);
@@ -48,7 +48,20 @@ inline void Telemetry_Print(Rx_struct Motor){
 }
 
 
+inline void Print_Velocity(uint16_t Vel){
+    float Percentage=float(Vel)/65535;
 
+    printf("\n  Velocity: %.2f %%\n",Percentage);
+
+
+}
+
+inline void Print_Sensors(uint16_t Apps1,uint16_t Apps2, uint16_t BSE, float Steering){
+    printf("\n APPS1: %d , APPS2: %d\n",Apps1, Apps2);
+    printf("\n Break: %d Steering: %.2f°\n",BSE, Steering);
+
+
+}
 
 
 

@@ -9,13 +9,13 @@
 
  ***/
 
-#ifndef _CONTROL_SYSTEM_H_
-#define _CONTROL_SYSTEM_H_
+#ifndef _CONTROL_SYSTEMM_H_
+#define _CONTROL_SYSTEMM_H_
 
 #include "mbed.h"
 #include <cstdint>
 #include <time.h>
-#include "angle_sensor.h"
+#include "ADC_sensors.h"
 
 /*==================================== SAFETY PARAMETERS ====================================*/
 #define MAX_MST_TEMPRATURE          40         // Motor Controller Max temperature [°C]
