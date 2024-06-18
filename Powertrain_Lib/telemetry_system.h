@@ -38,12 +38,12 @@ inline void Telemetry_Test(uint16_t val1, float val2, float val3){
 
 /*==================================  MOTOR MONITOR INTERFACE ==================================*/
 inline void Telemetry_Print(Rx_struct Motor){
-// message= '[CAN]: | TIME: 20:15:00 | PWM= 100%,  RPM= 300,  Vs=300 V,  Ic= 200 A ,  Tm= 20 °C ,  Tc= 21 °C'
+// message= '[CAN]: PWM= 100%,  RPM= 300,  Vs=300 V,  Ic= 200 A ,  Tm= 20 °C ,  Tc= 21 °C'
 
     printf("\n==================================================================\n");
-    printf("[CAN]: | TIME: 20:15:00 | PWM= %f%%,  RPM= %d",Motor.rx_PWM, Motor.RPM);
-    printf(",\n  Vs=%f V,  Ic= %d A ", Motor.Supply_Voltage, Motor.Current);
-    printf(",\n  Tm= %d °C ,  Tc= %d °C", Motor.Temp_motor, Motor.Temp_Controller);
+    printf("[CAN]: PWM= %f%%,  RPM= %d",Motor.rx_PWM, Motor.RPM);
+    printf(", Vs=%f V, Ic= %d A ", Motor.Supply_Voltage, Motor.Current);
+    printf(", Tm= %d °C , Tc= %d °C", Motor.Temp_motor, Motor.Temp_Controller);
     printf("\n==================================================================\n");
 }
 
@@ -57,8 +57,8 @@ inline void Print_Velocity(uint16_t Vel){
 }
 
 inline void Print_Sensors(uint16_t Apps1,uint16_t Apps2, uint16_t BSE, float Steering){
-    printf("\n APPS1: %d , APPS2: %d\n",Apps1, Apps2);
-    // printf("\n Break: %d Steering: %.2f°\n",BSE, Steering);
+    printf("\n APPS1: %d , APPS2: %d",Apps1, Apps2);
+    printf(" Break: %d Steering: %.2f°\n",BSE, Steering);
 
 
 }

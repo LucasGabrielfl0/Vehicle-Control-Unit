@@ -18,8 +18,8 @@
 /*================================== SENSORS PARAMETERS ==================================*/
 //General Parameters 
 #define VREF_ADC        3.3     // ADC Reference (in volts), it scales the 16bit in that range
-#define INPUT_MIN       4500    // Minimum 16bit Input the sensor should read
-#define INPUT_MAX       48000   // Maximum 16bit Input the sensor should read
+#define INPUT_MIN       0.2    // Minimum 16bit Input the sensor should read
+#define INPUT_MAX       3.2   // Maximum 16bit Input the sensor should read
 
 #define MAX_NOISE       0.09     // Expected Noise [Voltage variation] in ADC read
 
@@ -105,10 +105,12 @@ inline float angle_sensor:: read_angle(){
     // If variation is bigger than the expected noise, updates measurement 
     if(abs(New_ADC - Current_ADC) > MAX_NOISE){
         Current_ADC= New_ADC;
-        Angle= map(Current_ADC, Volt_min, Volt_max, Angle_min, Angle_max);
+        Angle= map(Current_ADC, Volt_min, Volt_max, 0, 160);
+        Angle= Angle-80;
     }
-    
-    if(abs(Angle)<10){
+
+    // Implausibilty [short or open circuit]
+    if(abs(Angle)<10 || New_ADC <= INPUT_MIN || New_ADC >= INPUT_MAX ){
         Angle=0;
     }
     if(abs(Angle)>75){
@@ -135,6 +137,12 @@ inline uint16_t PedalSensor:: read_pedal(){
     if(Pedal_pos > PEDAL_MAX-100){
         Pedal_pos = PEDAL_MAX;
     }
+
+    // Implausibilty [short or open circuit]
+    if(New_ADC <= INPUT_MIN || New_ADC >= INPUT_MAX ){
+        Pedal_pos=0;
+    }
+
 
     return Pedal_pos;
 }

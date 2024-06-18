@@ -23,8 +23,8 @@
 
 /*===================================== ADC INPUT VOLTAGES  =====================================*/
 //Steering Wheel Parameters
-#define STEERING_VMIN           0.425   //Steering Wheel Sensors Minimum input voltage
-#define STEERING_VMAX           2.825   //Steering Wheel Sensors Sensors Maximum input voltage
+#define STEERING_VMIN           0.325   //Steering Wheel Sensors Minimum input voltage
+#define STEERING_VMAX           3.0   //Steering Wheel Sensors Sensors Maximum input voltage
 
 //BSE (Break System Enconder) Parameters
 #define BSE_VMIN                0.3        //BSE Sensors Minimum input voltage
@@ -32,10 +32,10 @@
 
 //APPS (Accelerator Pedal Position Sensor) Parameters
 #define APPS1_VMIN              0.28      //APPS1 Minimum input voltage
-#define APPS1_VMAX              3.2      //APPS1 Maximum input voltage
+#define APPS1_VMAX              3.0      //APPS1 Maximum input voltage
 
 #define APPS2_VMIN              0.28        //APPS2 Minimum input voltage
-#define APPS2_VMAX              3.2        //APPS2 Maximum input voltage
+#define APPS2_VMAX              3.0        //APPS2 Maximum input voltage
 
 /*===================================== COMMUNICATION PORTS (STM32 F746ZG) =====================================*/
 
@@ -91,10 +91,9 @@ int main()
 
         //Read all Angle Sensors connected to the VCU
         Apps1 = APPS_1.read_pedal();
-        // APPS_1.Voltage_print();
-        // Apps2 = APPS_2.read_pedal();
-        // Break_sensor = BSE.read_pedal();
-        // Steering_dg = Steering_sensor.read_angle();
+        Apps2 = APPS_2.read_pedal();
+        Break_sensor = BSE.read_pedal();
+        Steering_dg = Steering_sensor.read_angle();
 
         //Read MPU9250
         //MPU9250: Accelerometer
@@ -111,7 +110,8 @@ int main()
 
     //-------------------------------- Control --------------------------------------------//
         // Wheel_Velocity = Motor_Control.control_test(Apps1, Apps2, Break_sensor, Steering_dg);
-        Wheel_Velocity = Motor_Control.control_test(Apps1, Apps1, 0, 0);
+        // Wheel_Velocity = Motor_Control.control_test(Apps1, Apps1, 0, 0);
+        Wheel_Velocity = Motor_Control.control_test(Apps1, Apps2, 0, Steering_dg);
 
 
     //----------------------------- Send data to Inverters ------------------------------//
@@ -131,6 +131,7 @@ int main()
 
         //Print voltage Read
         APPS_1.Voltage_print();
+        Steering_sensor.Voltage_print();
         Print_Velocity(Wheel_Velocity.RPM_W1);
         Print_Sensors(Apps1,  APPS_1.read_angle(), Break_sensor, Steering_dg);
 
