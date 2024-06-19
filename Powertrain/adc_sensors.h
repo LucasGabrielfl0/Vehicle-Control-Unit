@@ -16,19 +16,20 @@
 #include <time.h>
 
 /*================================== SENSORS PARAMETERS ==================================*/
-//General Parameters 
-#define VREF_ADC        3.3     // ADC Reference (in volts), it scales the 16bit in that range
-#define INPUT_MIN       0.2    // Minimum 16bit Input the sensor should read
-#define INPUT_MAX       3.2   // Maximum 16bit Input the sensor should read
+//General ADC Parameters 
+#define VREF_ADC        3.3         // ADC Reference (in volts), it scales the 16bit in that range
+#define INPUT_MIN       0.3         // Minimum 16bit Input the sensor should read
+#define INPUT_MAX       3.2         // Maximum 16bit Input the sensor should read
 
-#define MAX_NOISE       0.09     // Expected Noise [Voltage variation] in ADC read
+#define MAX_NOISE       0.09        // Expected Noise [Voltage variation] in ADC read
 
 //Steering Wheel Parameters
-#define Vol_ang_min     -80     //Minimum value for the Steering Wheel angle (Degrees)
-#define Vol_ang_max     80      //Maximum value for the Steering Wheel angle (Degrees)
+#define Vol_ang_min     -80         //Minimum value for the Steering Wheel angle (Degrees)
+#define Vol_ang_max     80          //Maximum value for the Steering Wheel angle (Degrees)
 
-#define PEDAL_MIN       0          //Minimum value for the Accelerator Pedal angle (Degrees)
-#define PEDAL_MAX       65535     //Maximum value for the Accelerator Pedal angle (Degrees)
+// Pedal Parameters
+#define PEDAL_MIN       0           //Minimum value for the Accelerator Pedal angle (Degrees)
+#define PEDAL_MAX       65535       //Maximum value for the Accelerator Pedal angle (Degrees)
 
 //Ultility Functions
 double millis();
@@ -41,20 +42,24 @@ void Calibrate_ADC();
 class angle_sensor{
     //Atributes
     protected:
-    float Angle{0};            // Angle's value in Degree
-    float Current_ADC{0};      // Last ADC voltage read [V]
-    float Volt_min;         // Sensor's Minimum voltage measurement
-    float Volt_max;         // Sensor's Maximum voltage measurement
-    float Angle_min;        // Sensor's Minimum angle
-    float Angle_max;        // Sensor's Maximum angle
-    AnalogIn ADC_Pin;       // Input Pin in the MicroController
+    float Angle{0};             // Angle's value in Degree
+    float Current_ADC{0};       // Last ADC voltage read [V]
+    float Volt_min;             // Sensor's Minimum voltage measurement
+    float Volt_max;             // Sensor's Maximum voltage measurement
+    float Angle_min;            // Sensor's Minimum angle
+    float Angle_max;            // Sensor's Maximum angle
+
+    bool Circuit_ERROR{0};      // Flag for short or open circuit
+
+    AnalogIn ADC_Pin;           // Input Pin in the MicroController
 
     //Methods
     public:
-    float read_angle();             //
-    uint16_t read_scaled_u16();     //
-    bool Input_Error_Check();       // tests if ADC value (16bit) is within bounds of sensor
-    void Voltage_print();           // prints raw voltage
+    float read_angle();                             // returns scaled angle
+    bool Circuit_Error_Check(float voltage_in);     // tests if ADC voltage is within bounds of sensor
+    void Voltage_print();                           // prints pin's voltage
+
+    // uint16_t read_scaled_u16();     //
 
     //Constructors:
     angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max);
@@ -63,6 +68,7 @@ class angle_sensor{
 class PedalSensor: public angle_sensor{
     private:
     uint16_t Pedal_pos;     //Pedal Position [0% = 0 | 100% = 16b]
+    
     public:
     // Methods:
     uint16_t read_pedal();  //Reads current Pedal Position
@@ -109,13 +115,19 @@ inline float angle_sensor:: read_angle(){
         Angle= Angle-80;
     }
 
-    // Implausibilty [short or open circuit]
-    if(abs(Angle)<10 || New_ADC <= INPUT_MIN || New_ADC >= INPUT_MAX ){
+    // Saturation
+    if(abs(Angle)<3){
         Angle=0;
     }
-    if(abs(Angle)>75){
+    if(abs(Angle)>77){
         Angle=80;
     }
+
+    // Implausibilty [short or open circuit]
+    if(Circuit_Error_Check(New_ADC)){
+        // Angle=0;
+    }
+
     return Angle;
 }
 
@@ -139,19 +151,30 @@ inline uint16_t PedalSensor:: read_pedal(){
     }
 
     // Implausibilty [short or open circuit]
-    if(New_ADC <= INPUT_MIN || New_ADC >= INPUT_MAX ){
-        Pedal_pos=0;
+    if(Circuit_Error_Check(New_ADC)){
+        // Pedal_pos=0;
     }
-
 
     return Pedal_pos;
 }
 
-// Probably useless
-inline uint16_t angle_sensor:: read_scaled_u16(){
-    uint16_t u1= map( ADC_Pin.read_voltage(), Volt_min, Volt_max, 0, 65535);
-    return u1;
+ // tests if ADC voltage read is within the sensor's bounds [short or open circuit]
+inline bool angle_sensor::Circuit_Error_Check(float voltage_in){      
+    if(voltage_in <= INPUT_MIN || voltage_in >= INPUT_MAX ){
+        Circuit_ERROR=1;
+    }
+    else{
+        Circuit_ERROR=0;
+    }
+    return Circuit_ERROR;
 }
+
+
+// // Probably useless
+// inline uint16_t angle_sensor:: read_scaled_u16(){
+//     uint16_t u1= map( ADC_Pin.read_voltage(), Volt_min, Volt_max, 0, 65535);
+//     return u1;
+// }
 
 // 
 inline void angle_sensor:: Voltage_print(){
@@ -169,16 +192,17 @@ inline double millis(){
     return micros / 1000.0;                                             //turns time passed from us to ms
 }
 
-//Maps the ADC 16bit voltage read into the angle's range 
+//Maps the ADC float voltage read into the angle's range 
 inline long map (long Variable, float in_min, float in_max, float out_min, float out_max) {
     long Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
     return Mapped_Variable;
 }
+
+//Maps the ADC float voltage read into 16bit 
 inline uint16_t map_u16 (float Variable, float in_min, float in_max, uint16_t out_min, uint16_t out_max) {
     uint16_t Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
     return Mapped_Variable;
 }
-
 
 
 inline void Calibrate_ADC(){

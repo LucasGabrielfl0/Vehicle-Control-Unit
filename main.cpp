@@ -10,7 +10,7 @@
 
 #include "mbed.h"
 #include <cstdint>
-#include "PowertrainLib.h"
+#include "Powertrain.h"
 
 // main() runs in its own thread in the OS
 
@@ -37,15 +37,16 @@
 #define APPS2_VMIN              0.28        //APPS2 Minimum input voltage
 #define APPS2_VMAX              3.0        //APPS2 Maximum input voltage
 
+
 /*===================================== COMMUNICATION PORTS (STM32 F746ZG) =====================================*/
+#define CAN1_TX                 PD_0
+#define CAN1_RX                 PD_1
 
-#define CAN1_TX                 PC_2
-#define CAN1_RX                 PA_0
+#define CAN2_RX                 PB_5    //
+#define CAN2_TX                 PB_6   //
 
-#define CAN2_TX                 PC_2    //
-#define CAN2_RX                 PA_0    //
-
-#define CAN_FREQUENCY           1e6     //CAN frequency in Hz (for CAN 2.0, its 1Mbit/s [1MHz])
+#define CAN1_FREQUENCY           1e6     //CAN frequency in Hz
+#define CAN2_FREQUENCY           1e6     //CAN frequency in Hz (for CAN 2.0, its 1Mbit/s [1MHz])
 
 //#define I2C_SCL                 PF_1
 //#define I2C_SDA                 PF_0
@@ -56,15 +57,17 @@
 
 /*===================================== Objetcs =====================================*/
 // Communication
-motor_can can1(PA_11, PA_12, CAN_FREQUENCY);
+CAN CAN_VCU(CAN1_RX, CAN1_TX, CAN2_FREQUENCY);                                          // VCU general CAN
+MotorCAN CAN_Motor(CAN2_RX, CAN2_TX, CAN2_FREQUENCY);                                   // Motor/Inverter CAN (Hv)
 
-// Control Sensors
-PedalSensor BSE(BSE_PIN, BSE_VMIN, BSE_VMAX);                                           // Break Pedal
-PedalSensor APPS_1(APPS1_PIN ,APPS1_VMIN, APPS1_VMAX);                                  // Accel. Pedal 1
-PedalSensor APPS_2(APPS2_PIN, APPS2_VMIN, APPS2_VMAX);                                  // Accel. Pedal 2
+// Pedal/Steering wheel Sensors
+PedalSensor BSE(BSE_PIN, BSE_VMIN, BSE_VMAX);                                           // Break Pedal sensor
+PedalSensor APPS_1(APPS1_PIN ,APPS1_VMIN, APPS1_VMAX);                                  // Accel. Pedal sensor 1
+PedalSensor APPS_2(APPS2_PIN, APPS2_VMIN, APPS2_VMAX);                                  // Accel. Pedal sensor 2
 SteeringSensor Steering_sensor (Steering_WHEEL_PIN, STEERING_VMIN, STEERING_VMAX);      // Steering Wheel sensor
 
-// Velocity Control
+
+// Velocity Control system
 ControlSystem Motor_Control;    //
 
 //MPU9250 Sensor (Gyroscope, Accelerometer, and Temperature)
@@ -74,41 +77,40 @@ ControlSystem Motor_Control;    //
 int main()
 {
     /*================================== INITIALIZATION ==================================*/
-    can1.set_CAN();
+    // Comm. system Initializaion
+    CAN_Motor.set_CAN();
 
+
+    // useless, debug
     uint16_t Apps1{0}, Apps2{0};    // Pedal Travel [0 to 16b]
     uint16_t Break_sensor{0};
-    
     float Steering_dg{0};
-    bool Error_flag;
 
     //Structs
-    Rx_struct Inv1_data, Inv2_data;
-    Velocity_struct Wheel_Velocity;
+    Rx_struct Inv1_data, Inv2_data;     // Data from Motor 1 and 2
+    Velocity_struct Wheel_Velocity;     // RPM Velocity in each wheel
 
     /*================================== LOOP ==================================*/
     while (true) {
 
         //Read all Angle Sensors connected to the VCU
+        //debug/useless
         Apps1 = APPS_1.read_pedal();
         Apps2 = APPS_2.read_pedal();
         Break_sensor = BSE.read_pedal();
         Steering_dg = Steering_sensor.read_angle();
 
-        //Read MPU9250
-        //MPU9250: Accelerometer
-
-        //MPU9250: Angular Velocity         
-
-        //MPU9250: Temperature       
-
     
     //------------------------------ Receive Data from Inverters ---------------------------//
         // Inv1_data=can1.receive_from_inverter();
         // Inv2_data=can1.receive_from_inverter_2();
-        Motor_Control.Motor_Error_Check(Inv1_data, Inv2_data);
+        // Motor_Control.Motor_Error_Check(Inv1_data, Inv2_data);
 
-    //-------------------------------- Control --------------------------------------------//
+    //-------------------------------- Control System --------------------------------------------//
+        // Wheel_Velocity = Motor_Control.control(APPS_1, APPS_2, BSE, Steering_sensor);
+        
+
+        // debug:
         // Wheel_Velocity = Motor_Control.control_test(Apps1, Apps2, Break_sensor, Steering_dg);
         // Wheel_Velocity = Motor_Control.control_test(Apps1, Apps1, 0, 0);
         Wheel_Velocity = Motor_Control.control_test(Apps1, Apps2, 0, Steering_dg);
@@ -132,7 +134,8 @@ int main()
         //Print voltage Read
         APPS_1.Voltage_print();
         Steering_sensor.Voltage_print();
-        Print_Velocity(Wheel_Velocity.RPM_W1);
+        BSE.Voltage_print();
+        Print_Duty_c(Wheel_Velocity.RPM_W1);
         Print_Sensors(Apps1,  APPS_1.read_angle(), Break_sensor, Steering_dg);
 
         wait_us(10e5);

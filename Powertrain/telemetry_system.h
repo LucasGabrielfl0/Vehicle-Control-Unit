@@ -15,9 +15,10 @@
 #include <cstdint>
 #include "can_communication.h"
 
-inline void Telemetry_Test(uint16_t val1, float val2, float val3);
-inline void Telemetry_Print(Rx_struct Motor);
-
+void Telemetry_Test(uint16_t val1, float val2, float val3);
+void Telemetry_Print(Rx_struct Motor);
+void Print_Sensors(uint16_t Apps1, uint16_t Apps2, uint16_t BSE, float Steering);
+void Print_Duty_c(uint16_t Vel);
 
 
 /*==================================  TEST ==================================*/
@@ -48,18 +49,15 @@ inline void Telemetry_Print(Rx_struct Motor){
 }
 
 
-inline void Print_Velocity(uint16_t Vel){
+inline void Print_Duty_c(uint16_t Vel){
     double Percentage=double(Vel)*100/65535;
-
     printf("\n Power [%%]: %.2f %%\n",Percentage);
-
 
 }
 
 inline void Print_Sensors(uint16_t Apps1,uint16_t Apps2, uint16_t BSE, float Steering){
     printf("\n APPS1: %d , APPS2: %d",Apps1, Apps2);
     printf(" Break: %d Steering: %.2f°\n",BSE, Steering);
-
 
 }
 
