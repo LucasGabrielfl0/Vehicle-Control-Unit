@@ -117,12 +117,6 @@ int main()
 
         //Datalogger
 
-        // Steering_dg=Steering_sensor.read_angle();
-        // Apps1=APPS_1.read_pedal();
-
-        //Telemetry
-        // Telemetry_Test(Apps1, Steering_dg, 10.0);
-        // Telemetry_Print(Rx_apps);
 
         wait_us(10e5);
 
