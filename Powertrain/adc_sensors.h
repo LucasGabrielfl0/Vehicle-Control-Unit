@@ -17,23 +17,24 @@
 
 /*================================== SENSORS PARAMETERS ==================================*/
 //General ADC Parameters 
-#define VREF_ADC        3.3         // ADC Reference (in volts), it scales the 16bit in that range
-#define INPUT_MIN       0.3         // Minimum 16bit Input the sensor should read
-#define INPUT_MAX       3.2         // Maximum 16bit Input the sensor should read
+#define VREF_ADC                3.3         // ADC Reference (in volts), it scales the 16bit in that range
+#define INPUT_MIN               0.3         // Minimum 16bit Input the sensor should read
+#define INPUT_MAX               3.2         // Maximum 16bit Input the sensor should read
 
-#define MAX_NOISE       0.09        // Expected Noise [Voltage variation] in ADC read
+#define MAX_NOISE               0.09        // Expected Noise [Voltage variation] in ADC read
+#define SATURATION_VOLTAGE      0.1         // Saturation 
 
 //Steering Wheel Parameters
-#define Vol_ang_min     -80         //Minimum value for the Steering Wheel angle (Degrees)
-#define Vol_ang_max     80          //Maximum value for the Steering Wheel angle (Degrees)
+#define Vol_ang_min             -80         //Minimum value for the Steering Wheel angle (Degrees)
+#define Vol_ang_max             80          //Maximum value for the Steering Wheel angle (Degrees)
 
 // Pedal Parameters
-#define PEDAL_MIN       0           //Minimum value for the Accelerator Pedal angle (Degrees)
-#define PEDAL_MAX       65535       //Maximum value for the Accelerator Pedal angle (Degrees)
+#define PEDAL_MIN               0           //Minimum value for the Accelerator Pedal angle (Degrees)
+#define PEDAL_MAX               65535       //Maximum value for the Accelerator Pedal angle (Degrees)
 
 //Ultility Functions
 double millis();
-long map(long Variable, float in_min, float in_max, float out_min, float out_max);
+float map(float Variable, float in_min, float in_max, float out_min, float out_max);
 uint16_t map_u16 (float Variable, float in_min, float in_max, uint16_t out_min, uint16_t out_max);
 void Calibrate_ADC();
 
@@ -57,6 +58,7 @@ class angle_sensor{
     public:
     float read_angle();                             // returns scaled angle
     bool Circuit_Error_Check(float voltage_in);     // tests if ADC voltage is within bounds of sensor
+    bool Circuit_Error_Check();                     // Returns Circuit Error
     void Voltage_print();                           // prints pin's voltage
 
     // uint16_t read_scaled_u16();     //
@@ -72,6 +74,7 @@ class PedalSensor: public angle_sensor{
     public:
     // Methods:
     uint16_t read_pedal();  //Reads current Pedal Position
+    void Voltage_print();
     
     // Constructors:
     PedalSensor(PinName adc_Pin, float _volt_min, float _volt_max);
@@ -111,16 +114,7 @@ inline float angle_sensor:: read_angle(){
     // If variation is bigger than the expected noise, updates measurement 
     if(abs(New_ADC - Current_ADC) > MAX_NOISE){
         Current_ADC= New_ADC;
-        Angle= map(Current_ADC, Volt_min, Volt_max, 0, 160);
-        Angle= Angle-80;
-    }
-
-    // Saturation
-    if(abs(Angle)<3){
-        Angle=0;
-    }
-    if(abs(Angle)>77){
-        Angle=80;
+        Angle= map(Current_ADC, Volt_min, Volt_max, Angle_min, Angle_max);
     }
 
     // Implausibilty [short or open circuit]
@@ -142,13 +136,6 @@ inline uint16_t PedalSensor:: read_pedal(){
         Pedal_pos= map_u16(Current_ADC, Volt_min, Volt_max, PEDAL_MIN, PEDAL_MAX);
     }
 
-    // Just Saturates above and below certain value
-    if(Pedal_pos < PEDAL_MIN+100){
-        Pedal_pos = PEDAL_MIN;
-    }
-    if(Pedal_pos > PEDAL_MAX-100){
-        Pedal_pos = PEDAL_MAX;
-    }
 
     // Implausibilty [short or open circuit]
     if(Circuit_Error_Check(New_ADC)){
@@ -162,24 +149,31 @@ inline uint16_t PedalSensor:: read_pedal(){
 inline bool angle_sensor::Circuit_Error_Check(float voltage_in){      
     if(voltage_in <= INPUT_MIN || voltage_in >= INPUT_MAX ){
         Circuit_ERROR=1;
+        printf("\nCIRCUIT: ERROR DETECTED\n");
+    
     }
     else{
         Circuit_ERROR=0;
     }
+
+    return Circuit_ERROR;
+}
+inline bool angle_sensor::Circuit_Error_Check(){      
     return Circuit_ERROR;
 }
 
-
-// // Probably useless
-// inline uint16_t angle_sensor:: read_scaled_u16(){
-//     uint16_t u1= map( ADC_Pin.read_voltage(), Volt_min, Volt_max, 0, 65535);
-//     return u1;
-// }
-
-// 
 inline void angle_sensor:: Voltage_print(){
     uint16_t Voltage_16bit=ADC_Pin.read_u16();
-    printf("\n[VCU] ADC: Voltage_Read[16bit]: %d , Voltage[V]: %.2f V  \n",Voltage_16bit, ADC_Pin.read_voltage() );    
+    printf("\n[VCU] ADC: Voltage_Read[16bit]: %d , Voltage[V]: %.2f V ",Voltage_16bit, ADC_Pin.read_voltage() );    
+    printf("Angle: %.2f\n", Angle);
+}
+
+inline void PedalSensor:: Voltage_print(){
+    uint16_t Voltage_16bit=ADC_Pin.read_u16();
+    double Percentage=(double(Voltage_16bit)/65535)*100;
+
+    printf("\n[VCU] ADC: Voltage_Read[16bit]: %d , Voltage[V]: %.2f V ",Voltage_16bit, ADC_Pin.read_voltage() );    
+    printf("\n Power [%%]: %.2f %%\n",Percentage);
 }
 
 
@@ -193,14 +187,33 @@ inline double millis(){
 }
 
 //Maps the ADC float voltage read into the angle's range 
-inline long map (long Variable, float in_min, float in_max, float out_min, float out_max) {
-    long Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+inline float map (float Variable, float in_min, float in_max, float out_min, float out_max) {
+    float Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    
+    // Saturation + Out of bounds variable
+    if (Variable >= in_max ) {
+        Mapped_Variable= out_max;    
+    }
+    if (Variable <= (in_min + SATURATION_VOLTAGE) ) {
+        Mapped_Variable= out_min;    
+    }
     return Mapped_Variable;
 }
 
 //Maps the ADC float voltage read into 16bit 
 inline uint16_t map_u16 (float Variable, float in_min, float in_max, uint16_t out_min, uint16_t out_max) {
     uint16_t Mapped_Variable = (Variable - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    
+    // Saturation + Out of bounds variable
+    if (Variable >= (in_max - SATURATION_VOLTAGE) ) {
+        Mapped_Variable= out_max;    
+    }
+    
+    // If it's close to min voltage, its the min voltage
+    if (Variable <= (in_min + SATURATION_VOLTAGE) ) {
+        Mapped_Variable= out_min;    
+    }
+    
     return Mapped_Variable;
 }
 

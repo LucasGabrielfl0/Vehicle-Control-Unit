@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <time.h>
 #include "adc_sensors.h"
+#include "telemetry_system.h"
 #include "can_communication.h"
 
 /*==================================== SAFETY PARAMETERS ====================================*/
@@ -36,8 +37,9 @@ struct Velocity_struct{
 /*======================================== Aux Functions ========================================*/
 Velocity_struct get_Differential(float Steering_dg, uint16_t Wv_rpm);
 bool Error_Temperature(int16_t Temp_motor, int16_t Temp_controlller);
-
-
+void print_differential(uint16_t Apps_1, float Steering_dg, Velocity_struct Wheel_Velocity);
+void print_Control(uint16_t Apps_1,uint16_t Apps_2,uint16_t BSE, float Steering_dg, Velocity_struct Wheel_Velocity);
+void print_errors(bool ERROR_State,bool Error_APPS,bool Error_BPPC, bool Error_Motor); 
 /*======================================== CLASS ========================================*/
 class ControlSystem {
     private:
@@ -57,6 +59,11 @@ class ControlSystem {
     void BSE_Error_check(uint16_t Apps_val, uint16_t Break_val);
     void Motor_Error_Check(Rx_struct Inverter_1, Rx_struct Inverter_2);
     Velocity_struct control(PedalSensor Apps_1, PedalSensor Apps_2, PedalSensor BSE_sensor, SteeringSensor Steering_sensor);
+    
+    // Test only
+    Velocity_struct control(PedalSensor Apps_1);
+    Velocity_struct control(PedalSensor Apps_1, SteeringSensor Steering_sensor);
+    Velocity_struct control(PedalSensor Apps_1, PedalSensor Apps_2, PedalSensor BSE_sensor);
     Velocity_struct control_test(uint16_t Apps_1, uint16_t Apps_2, uint16_t BSE_sensor, uint16_t Steering_dg);
 
     // Constructors
@@ -70,8 +77,90 @@ inline ControlSystem::ControlSystem(){
 };
 
 
-/*======================================== VECELOCITY CONTROL ==================================*/
+
+
+
+/*======================================== VELOCITY CONTROL ==================================*/
 // Apps_16b= Accel. Pedal signal scaled [0 = Min travel | 65535 = Max travel]
+inline Velocity_struct ControlSystem::control(PedalSensor APPS_1, PedalSensor APPS_2, PedalSensor BSE_sensor, SteeringSensor Steering_sensor){
+    Velocity_struct Velocity_Wheels;
+    
+    uint16_t Apps_1 = APPS_1.read_pedal();
+    uint16_t Apps_2 = APPS_1.read_pedal();
+    uint16_t BSE = BSE_sensor.read_pedal();
+    float Steering_dg= Steering_sensor.read_angle();
+
+    // Error Check
+    APPS_Error_check(Apps_1, Apps_2);                                   // Apps Error Check
+    BSE_Error_check(Apps_1, BSE);                                       // Break Implausibility Check
+
+    ERROR_State= Error_APPS || Error_BPPC || Error_Motor;
+
+    if(ERROR_State){
+        Velocity_Wheels.RPM_W1 = 0;
+        Velocity_Wheels.RPM_W2 = 0;
+    }
+    else{
+        // get Differential
+        Velocity_Wheels = get_Differential(Steering_dg, Apps_1);
+    }
+    
+    print_Control(Apps_1, Apps_2, BSE, Steering_dg, Velocity_Wheels);
+    print_errors(ERROR_State,Error_APPS,Error_BPPC,Error_Motor);
+
+    // Return Velocity in each wheel
+    return Velocity_Wheels;
+}
+
+
+// test plausibility/safety part of the control
+inline Velocity_struct ControlSystem::control(PedalSensor APPS_1, PedalSensor APPS_2, PedalSensor BSE_sensor){
+    Velocity_struct Velocity_Wheels;
+    
+    uint16_t Apps_1 = APPS_1.read_pedal();
+    // uint16_t Apps_2 = APPS_2.read_pedal();
+    uint16_t Apps_2 = Apps_1;
+    uint16_t BSE = BSE_sensor.read_pedal();
+    // uint16_t BSE = 0;
+
+    // Error Check
+    APPS_Error_check(Apps_1, Apps_2);                                   // Apps Error Check
+    BSE_Error_check(Apps_1, BSE);                                       // Break Implausibility Check
+
+
+    ERROR_State= Error_APPS || Error_BPPC || Error_Motor;
+    
+    Velocity_Wheels.RPM_W1=Apps_1;
+    Velocity_Wheels.RPM_W2=Apps_1;
+    print_errors(ERROR_State,Error_APPS,Error_BPPC,Error_Motor);
+
+    if(ERROR_State){
+        Velocity_Wheels.RPM_W1 = 0;
+        Velocity_Wheels.RPM_W2 = 0;
+    }
+
+    print_Control(Apps_1, Apps_2, BSE, 0, Velocity_Wheels);
+
+    // Return Velocity in each wheel
+    return Velocity_Wheels;
+}
+
+// Test Differential
+inline Velocity_struct ControlSystem::control(PedalSensor APPS_1, SteeringSensor Steering_sensor){
+    Velocity_struct Velocity_Wheels;
+    
+    uint16_t Apps_1 = APPS_1.read_pedal();
+    float Steering_dg= Steering_sensor.read_angle();
+
+    // get Differential
+    Velocity_Wheels = get_Differential(Steering_dg, Apps_1);
+
+    print_differential(Apps_1, Steering_dg,Velocity_Wheels);
+    // Return Velocity in each wheel
+    return Velocity_Wheels;
+}
+
+
 inline Velocity_struct ControlSystem::control_test(uint16_t Apps_1, uint16_t Apps_2, uint16_t BSE_sensor, uint16_t Steering_dg){
     Velocity_struct Velocity_Wheels;
     
@@ -93,61 +182,10 @@ inline Velocity_struct ControlSystem::control_test(uint16_t Apps_1, uint16_t App
         Velocity_Wheels = get_Differential(Steering_dg, Apps_1);
     }
 
-    //debug
-    // Velocity_Wheels.RPM_W1=Apps_1;
-    // Velocity_Wheels.RPM_W2=Apps_1;
 
     // Return Velocity in each wheel
     return Velocity_Wheels;
 }
-
-
-
-/*======================================== VECELOCITY CONTROL ==================================*/
-// Apps_16b= Accel. Pedal signal scaled [0 = Min travel | 65535 = Max travel]
-inline Velocity_struct ControlSystem::control(PedalSensor APPS_1, PedalSensor APPS_2, PedalSensor BSE_sensor, SteeringSensor Steering_sensor){
-    Velocity_struct Velocity_Wheels;
-    
-    uint16_t Apps_1 = APPS_1.read_pedal();
-    uint16_t Apps_2 = APPS_1.read_pedal();
-    uint16_t BSE = BSE_sensor.read_pedal();
-    float Steering_dg= Steering_sensor.read_angle();
-
-    // Error Check
-    APPS_Error_check(Apps_1, Apps_2);                                   // Apps Error Check
-    BSE_Error_check(Apps_1, BSE);                                       // Break Implausibility Check
-    // Error_Circuit = APPS_1.
-    // Circuit_Error_check(APPS_1, APPS_2, BSE_sensor, Steering_sensor);   // Short/Open Circuit check
-
-
-    ERROR_State= Error_APPS || Error_BPPC || Error_Motor;
-    
-    //debug
-    ERROR_State = false;
-
-    if(ERROR_State){
-        Velocity_Wheels.RPM_W1 = 0;
-        Velocity_Wheels.RPM_W2 = 0;
-    }
-    else{
-        // get Differential
-        Velocity_Wheels = get_Differential(Steering_dg, Apps_1);
-    }
-
-    //debug
-    // Velocity_Wheels.RPM_W1=Apps_1;
-    // Velocity_Wheels.RPM_W2=Apps_1;
-
-    // Return Velocity in each wheel
-    return Velocity_Wheels;
-}
-
-
-
-
-
-
-
 
 
 
@@ -166,6 +204,7 @@ inline void ControlSystem::APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2){
         // Checks if the error continues after 100ms and sets error
         if(millis() - Error_Start_Time > 100) { 
             Error_APPS= 1;
+            printf("APPS: ERROR DETECTED");
         } else{
             Error_APPS= 0;
         }
@@ -185,10 +224,11 @@ inline void ControlSystem::BSE_Error_check(uint16_t Apps_val, uint16_t Break_val
     //If APPS >= 25% of pedal travel and Break is pressed, stops the car 
     if ( (Apps_val >= 0.25*PEDAL_MAX) && (Break_val >= 0.02*PEDAL_MAX) ){
         Error_BPPC = 1;
+        printf("BSE: ERROR DETECTED");
     }
 
     // Error only Stops if APPS goes below 5% of pedal travel
-    if(Apps_val <= 0.05*PEDAL_MAX){
+    if(Apps_val < 0.05*PEDAL_MAX){
         Error_BPPC = 0;
     }
 
@@ -215,6 +255,7 @@ inline void ControlSystem::Motor_Error_Check(Rx_struct Inverter_1, Rx_struct Inv
 /*=========================================== DIFFERENTIAL ===========================================*/
 // Calculates the Velocity [in RPM] of each wheel during a turn, W1 = [LEFT WHEEL] || W2 = [RIGHT WHEEL]
 inline Velocity_struct get_Differential(float Steering_dg, uint16_t Wv_rpm){
+    int64_t RPM_W1,RPM_W2;
     float Ack_rad;
     float del_W;
     Velocity_struct Differential_vel;
@@ -226,17 +267,73 @@ inline Velocity_struct get_Differential(float Steering_dg, uint16_t Wv_rpm){
     }
 
     // Get Ackerman Angle [in rad] using the steering Wheel rotation [in Degrees] 
-    Ack_rad=(0.2 * Steering_dg)* PI/180;
+    Ack_rad=(0.14 * Steering_dg)* PI/180;
 
     // Velocity Variation during turn
     del_W= KC * tan(Ack_rad);
 
     // Calculate differential [in Rad/s] and turns into RPM (Note: there's a Implicit Type Conversion there)
-    Differential_vel.RPM_W1= Wv_rpm * ( 1 + del_W);
-    Differential_vel.RPM_W2= Wv_rpm * ( 1 - del_W);
+    RPM_W1= Wv_rpm * ( 1 + del_W);
+    RPM_W2= Wv_rpm * ( 1 - del_W);
+
+
+    // Prevent overflow/underflow [values above 16b or below 0 going to the uint16 output]
+    //if overflow, sets max
+    if(RPM_W1>PEDAL_MAX){
+        RPM_W1=PEDAL_MAX;
+    }
+    if(RPM_W2>PEDAL_MAX){
+        RPM_W2=PEDAL_MAX;
+    }
+
+    //if overflow, sets min
+    if(RPM_W1<0){
+        RPM_W1=0;
+    }
+
+    if(RPM_W2<0){
+        RPM_W2=0;
+    }
+
+    // Return Velocity in each Wheel
+    Differential_vel.RPM_W1 = uint16_t(RPM_W1);
+    Differential_vel.RPM_W2 = uint16_t(RPM_W2);
+
 
     return Differential_vel;
 }
+
+
+inline void print_differential(uint16_t Apps_1, float Steering_dg, Velocity_struct Wheel_Velocity){
+        double Pedal=(double(Apps_1)/65535)*100;
+        double Pm1=(double(Wheel_Velocity.RPM_W1)/65535)*100;
+        double Pm2=(double(Wheel_Velocity.RPM_W2)/65535)*100;
+
+        printf("\n[Electronic Differential]  ==================================================#");
+        printf("\n Pedal_Travel: %.2f%%,  Steering Angle : %.2f°\n", Pedal,Steering_dg);
+        printf("\n Power_1: %.2f %%,  Power_2: %.2f %%\n", Pm1,Pm2);
+        printf("#============================================================================#\n");
+
+    }
+
+inline void print_Control(uint16_t Apps_1,uint16_t Apps_2,uint16_t BSE, float Steering_dg, Velocity_struct Wheel_Velocity){
+        double Pedal_1=(double(Apps_1)/65535)*100;
+        double Pedal_2=(double(Apps_2)/65535)*100;
+        double Break=(double(BSE)/65535)*100;
+        double Pm1=(double(Wheel_Velocity.RPM_W1)/65535)*100;
+        double Pm2=(double(Wheel_Velocity.RPM_W2)/65535)*100;
+
+        printf("\n[Control]  ==================================================#");
+        printf("\n Pedal_1: %.2f%%,  Pedal_2: %.2f%%, Break: %.2f%%\n", Pedal_1, Pedal_2, Break);
+        printf("\n Pedal_Travel: %.2f%%,  Steering Angle : %.2f°\n", Pedal_1,Steering_dg);
+        printf("\n Power_1: %.2f %%,  Power_2: %.2f %%\n", Pm1,Pm2);
+        printf("#============================================================================#\n");
+    }
+
+inline void print_errors(bool ERROR_State,bool Error_APPS,bool Error_BPPC, bool Error_Motor){
+    printf("\nState:  %d || ",ERROR_State);
+    printf("Error_APPS:  %d || Error_BPPC:  %d || Error_Motor:  %d\n",Error_APPS, Error_BPPC, Error_Motor);
+    }
 
 
 #endif

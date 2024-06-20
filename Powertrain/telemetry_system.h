@@ -50,17 +50,16 @@ inline void Telemetry_Print(Rx_struct Motor){
 
 
 inline void Print_Duty_c(uint16_t Vel){
-    double Percentage=double(Vel)*100/65535;
+    double Percentage=(double(Vel)/65535)*100;
     printf("\n Power [%%]: %.2f %%\n",Percentage);
 
 }
 
-inline void Print_Sensors(uint16_t Apps1,uint16_t Apps2, uint16_t BSE, float Steering){
-    printf("\n APPS1: %d , APPS2: %d",Apps1, Apps2);
-    printf(" Break: %d Steering: %.2f°\n",BSE, Steering);
+inline void Print_Sensors(float Apps1,float Apps2, float BSE, float Steering){
+    printf("\n APPS1: %.2f , APPS2: %.2f",Apps1, Apps2);
+    printf(" , Break: %.2f, Steering: %.2f°\n",BSE, Steering);
 
 }
-
 
 
 

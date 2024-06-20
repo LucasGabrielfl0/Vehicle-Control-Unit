@@ -3,19 +3,16 @@ Integration of the VCU, the car's safety sensors(APPS, BSE, ...), the Electronic
 
 ## Getting Started!
 
-To decrease the complexity of the main code and improve it's safety, 2 Header files were created:
+To decrease the complexity of the main code and improve it's safety, a few header files were created:
 
--  angle_sensors 
--  motor_can
+-  adc_sensors
+-  can_communication
+-  control_system
+-  telemetry_system
 
-### Angle Sensors
-The class has methods to get and validate data from Pedals and other angle related sensors (APPS, BSE, Steering Wheel) 
-```
-angle_sensors.h
-```
+### Powertrain Header
+The header files above were put in the Powertrain folder and called by the .h file below
 
-### Motor Can
-motor_can has methods to facilitate the communication with the motor controllers  
 ```
-motor_can.h 
+Powertrain.h
 ```

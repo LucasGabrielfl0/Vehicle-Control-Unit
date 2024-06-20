@@ -16,7 +16,7 @@
 
 /*===================================== ADC PORTS (STM32 F746ZG) =====================================*/
 #define Steering_WHEEL_PIN      PC_2
-#define BSE_PIN                 PA_0
+#define BSE_PIN                 PB_1
 #define APPS1_PIN               PF_4
 #define APPS2_PIN               PF_4
 #define APPS_PIN_OUT            PA_5
@@ -39,8 +39,8 @@
 
 
 /*===================================== COMMUNICATION PORTS (STM32 F746ZG) =====================================*/
-#define CAN1_TX                 PD_0
-#define CAN1_RX                 PD_1
+#define CAN1_RX                 PD_0
+#define CAN1_TX                 PD_1
 
 #define CAN2_RX                 PB_5    //
 #define CAN2_TX                 PB_6   //
@@ -93,28 +93,18 @@ int main()
     /*================================== LOOP ==================================*/
     while (true) {
 
-        //Read all Angle Sensors connected to the VCU
-        //debug/useless
-        Apps1 = APPS_1.read_pedal();
-        Apps2 = APPS_2.read_pedal();
-        Break_sensor = BSE.read_pedal();
-        Steering_dg = Steering_sensor.read_angle();
-
-    
     //------------------------------ Receive Data from Inverters ---------------------------//
         // Inv1_data=can1.receive_from_inverter();
         // Inv2_data=can1.receive_from_inverter_2();
         // Motor_Control.Motor_Error_Check(Inv1_data, Inv2_data);
 
     //-------------------------------- Control System --------------------------------------------//
-        // Wheel_Velocity = Motor_Control.control(APPS_1, APPS_2, BSE, Steering_sensor);
+        Wheel_Velocity = Motor_Control.control(APPS_1, APPS_2, BSE, Steering_sensor);
         
 
         // debug:
-        // Wheel_Velocity = Motor_Control.control_test(Apps1, Apps2, Break_sensor, Steering_dg);
-        // Wheel_Velocity = Motor_Control.control_test(Apps1, Apps1, 0, 0);
-        Wheel_Velocity = Motor_Control.control_test(Apps1, Apps2, 0, Steering_dg);
-
+        // Wheel_Velocity = Motor_Control.control(APPS_1, APPS_2, BSE);
+        // Wheel_Velocity = Motor_Control.control(APPS_1, Steering_sensor);
 
     //----------------------------- Send data to Inverters ------------------------------//
         // can1.send_to_inverter_1(Wheel_Velocity.RPM_W1);
@@ -130,13 +120,6 @@ int main()
         //Telemetry
         // Telemetry_Test(Apps_1, Steering_dg, 10.0);
         // Telemetry_Print(Rx_apps);
-
-        //Print voltage Read
-        APPS_1.Voltage_print();
-        Steering_sensor.Voltage_print();
-        BSE.Voltage_print();
-        Print_Duty_c(Wheel_Velocity.RPM_W1);
-        Print_Sensors(Apps1,  APPS_1.read_angle(), Break_sensor, Steering_dg);
 
         wait_us(10e5);
 

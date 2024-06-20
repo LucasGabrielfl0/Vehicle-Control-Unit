@@ -153,8 +153,7 @@ inline void MotorCAN:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, 
     inverter_tx_msg.data[5] = MAX_CURRENT_LIMIT & 0xFF;             // Current's  LSB;
     inverter_tx_msg.data[6] = MAX_CURRENT_LIMIT >> 8;               // Current's  MSB;
     inverter_tx_msg.data[7] = 0b00000000;
-    //inverter_tx_msg.data[7] = (IsBreak<<7) + (IsReverse<< 6);       // b7: 0 = Throtle || 1 = Brake 0
-                                                                    // b6: 0 = Forward || 1 = Reverse
+    //inverter_tx_msg.data[7] = (IsBreak<<7);                       // b7: 0 = Throtle || 1 = Brake 0
     
     //Sends CAN message, resets can if there is an error
     if(baud_test()) {
