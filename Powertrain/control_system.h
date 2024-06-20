@@ -15,7 +15,6 @@
 #include <cstdint>
 #include <time.h>
 #include "adc_sensors.h"
-#include "telemetry_system.h"
 #include "can_communication.h"
 
 /*==================================== SAFETY PARAMETERS ====================================*/
@@ -118,10 +117,8 @@ inline Velocity_struct ControlSystem::control(PedalSensor APPS_1, PedalSensor AP
     Velocity_struct Velocity_Wheels;
     
     uint16_t Apps_1 = APPS_1.read_pedal();
-    // uint16_t Apps_2 = APPS_2.read_pedal();
-    uint16_t Apps_2 = Apps_1;
+    uint16_t Apps_2 = APPS_2.read_pedal();
     uint16_t BSE = BSE_sensor.read_pedal();
-    // uint16_t BSE = 0;
 
     // Error Check
     APPS_Error_check(Apps_1, Apps_2);                                   // Apps Error Check
@@ -197,12 +194,12 @@ inline void ControlSystem::APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2){
     if ( abs(Apps_1 - Apps_2) > (0.1 * max(Apps_1, Apps_2)) ){
         // if there's discrepancy,sets flag and starts Counting
         if(AppsError_flag == 0) {
-            Error_Start_Time = millis(); 
+            Error_Start_Time = current_ms(); 
             AppsError_flag = 1;
         }
         
         // Checks if the error continues after 100ms and sets error
-        if(millis() - Error_Start_Time > 100) { 
+        if(current_ms() - Error_Start_Time > 100) { 
             Error_APPS= 1;
             printf("APPS: ERROR DETECTED");
         } else{

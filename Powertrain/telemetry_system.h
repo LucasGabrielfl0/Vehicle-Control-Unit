@@ -13,6 +13,7 @@
 #include "mbed.h"
 #include "CAN.h"
 #include <cstdint>
+#include "control_system.h"
 #include "can_communication.h"
 
 void Telemetry_Test(uint16_t val1, float val2, float val3);
@@ -39,10 +40,11 @@ inline void Telemetry_Test(uint16_t val1, float val2, float val3){
 
 /*==================================  MOTOR MONITOR INTERFACE ==================================*/
 inline void Telemetry_Print(Rx_struct Motor){
-// message= '[CAN]: PWM= 100%,  RPM= 300,  Vs=300 V,  Ic= 200 A ,  Tm= 20 °C ,  Tc= 21 °C'
+// message= '[CAN]: Time= 3000.20 ms || PWM= 100% || RPM= 300 || Vs=300 V || Ic= 200 A  || Tm= 20 °C || Tc= 21 °C'
 
+    
     printf("\n==================================================================\n");
-    printf("[CAN]: PWM= %f%%,  RPM= %d",Motor.rx_PWM, Motor.RPM);
+    printf("[CAN]: Time= %lu || PWM= %f%%,  RPM= %d", current_ms(),Motor.rx_PWM, Motor.RPM);
     printf(", Vs=%f V, Ic= %d A ", Motor.Supply_Voltage, Motor.Current);
     printf(", Tm= %d °C , Tc= %d °C", Motor.Temp_motor, Motor.Temp_Controller);
     printf("\n==================================================================\n");

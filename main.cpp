@@ -107,8 +107,8 @@ int main()
         // Wheel_Velocity = Motor_Control.control(APPS_1, Steering_sensor);
 
     //----------------------------- Send data to Inverters ------------------------------//
-        // can1.send_to_inverter_1(Wheel_Velocity.RPM_W1);
-        // can1.send_to_inverter_2(Wheel_Velocity.RPM_W2);
+        // can1.send_to_inverter_1(Wheel_Velocity.RPM_W1, 0);
+        // can1.send_to_inverter_2(Wheel_Velocity.RPM_W2, 0);
 
 
 
@@ -117,8 +117,11 @@ int main()
 
         //Datalogger
 
+        // Steering_dg=Steering_sensor.read_angle();
+        // Apps1=APPS_1.read_pedal();
+
         //Telemetry
-        // Telemetry_Test(Apps_1, Steering_dg, 10.0);
+        // Telemetry_Test(Apps1, Steering_dg, 10.0);
         // Telemetry_Print(Rx_apps);
 
         wait_us(10e5);

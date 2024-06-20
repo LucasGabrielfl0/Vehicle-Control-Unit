@@ -33,7 +33,7 @@
 #define PEDAL_MAX               65535       //Maximum value for the Accelerator Pedal angle (Degrees)
 
 //Ultility Functions
-double millis();
+long current_ms();
 float map(float Variable, float in_min, float in_max, float out_min, float out_max);
 uint16_t map_u16 (float Variable, float in_min, float in_max, uint16_t out_min, uint16_t out_max);
 void Calibrate_ADC();
@@ -179,7 +179,7 @@ inline void PedalSensor:: Voltage_print(){
 
 /*======================================== Auxiliar functions ========================================*/
 //time passed (in ms) since the program first started
-inline double millis(){
+inline long current_ms(){
     using namespace std::chrono;
     auto now_us = time_point_cast<microseconds>(Kernel::Clock::now());  //time of referece= program's begin
     long micros = now_us.time_since_epoch().count();                    //time (in us) since the reference 
