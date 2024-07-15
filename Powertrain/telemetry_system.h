@@ -17,37 +17,39 @@
 #include "can_communication.h"
 
 void Telemetry_Test(uint16_t val1, float val2, float val3);
-void Telemetry_Print(Rx_struct Motor);
+void Telemetry_Print(RxStruct Motor);
 void Print_Sensors(uint16_t Apps1, uint16_t Apps2, uint16_t BSE, float Steering);
 void Print_Duty_c(uint16_t Vel);
 
 
 /*==================================  TEST ==================================*/
 //test Telemetry graphs with apps sensors [so you cant test without the motor]
-inline void Telemetry_Test(uint16_t val1, float val2, float val3){
-    Rx_struct Rx_apps;
+inline void Telemetry_Test(uint16_t val1, uint16_t val2, float val3){
+    RxStruct Rx_apps;
+    double p1=(double(val1)/65535)*100;
+    double p2=(double(val2)/65535)*9000;
     
-    Rx_apps.Supply_Voltage= 3*val3;
-    Rx_apps.Temp_Controller= val2;
-    Rx_apps.Temp_motor= val3;
-    Rx_apps.RPM=val1;
-    Rx_apps.rx_PWM=val2;
-    Rx_apps.Current=val2;
+    val3=100+val3;
+    Rx_apps.Supply_Voltage= 4*p1;
+    Rx_apps.Temp_Controller= val3;
+    Rx_apps.Temp_motor= 2*val3;
+    Rx_apps.RPM=p2;
+    Rx_apps.rx_PWM=p1;
+    Rx_apps.Current=p1*2;
 
     Telemetry_Print(Rx_apps);
 }
 
 
 /*==================================  MOTOR MONITOR INTERFACE ==================================*/
-inline void Telemetry_Print(Rx_struct Motor){
+inline void Telemetry_Print(RxStruct Motor){
 // message= '[CAN]: Time= 3000.20 ms || PWM= 100% || RPM= 300 || Vs=300 V || Ic= 200 A  || Tm= 20 °C || Tc= 21 °C'
-
-    
-    printf("\n==================================================================\n");
-    printf("[CAN]: Time= %lu || PWM= %f%%,  RPM= %d", current_ms(),Motor.rx_PWM, Motor.RPM);
+    float time_sec= float(current_ms())/1000;
+    // printf("\n==================================================================\n");
+    printf("\n[CAN]: Time= %.2f || PWM= %f%%,  RPM= %d", time_sec,Motor.rx_PWM, Motor.RPM);
     printf(", Vs=%f V, Ic= %d A ", Motor.Supply_Voltage, Motor.Current);
     printf(", Tm= %d °C , Tc= %d °C", Motor.Temp_motor, Motor.Temp_Controller);
-    printf("\n==================================================================\n");
+    // printf("\n==================================================================\n");
 }
 
 

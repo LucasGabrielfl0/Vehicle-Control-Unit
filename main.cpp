@@ -14,6 +14,8 @@
 
 // main() runs in its own thread in the OS
 
+
+
 /*===================================== ADC PORTS (STM32 F746ZG) =====================================*/
 #define Steering_WHEEL_PIN      PC_2
 #define BSE_PIN                 PB_1
@@ -23,36 +25,31 @@
 
 /*===================================== ADC INPUT VOLTAGES  =====================================*/
 //Steering Wheel Parameters
-#define STEERING_VMIN           0.325   //Steering Wheel Sensors Minimum input voltage
-#define STEERING_VMAX           3.0   //Steering Wheel Sensors Sensors Maximum input voltage
+#define STEERING_VMIN           0.325       // Steering Wheel Sensors Minimum input voltage
+#define STEERING_VMAX           3.0         // Steering Wheel Sensors Sensors Maximum input voltage
 
 //BSE (Break System Enconder) Parameters
-#define BSE_VMIN                0.3        //BSE Sensors Minimum input voltage
-#define BSE_VMAX                3.0        //BSE Sensors Minimum input voltage
+#define BSE_VMIN                0.3         // BSE Sensors Minimum input voltage
+#define BSE_VMAX                3.0         // BSE Sensors Minimum input voltage
 
 //APPS (Accelerator Pedal Position Sensor) Parameters
-#define APPS1_VMIN              0.28      //APPS1 Minimum input voltage
-#define APPS1_VMAX              3.0      //APPS1 Maximum input voltage
+#define APPS1_VMIN              0.28        // APPS1 Minimum input voltage
+#define APPS1_VMAX              3.0         // APPS1 Maximum input voltage
 
-#define APPS2_VMIN              0.28        //APPS2 Minimum input voltage
-#define APPS2_VMAX              3.0        //APPS2 Maximum input voltage
+#define APPS2_VMIN              0.28        // APPS2 Minimum input voltage
+#define APPS2_VMAX              3.0         // APPS2 Maximum input voltage
 
 
 /*===================================== COMMUNICATION PORTS (STM32 F746ZG) =====================================*/
-#define CAN1_RX                 PD_0
-#define CAN1_TX                 PD_1
+// CAN
+#define CAN1_RX                 PD_0        // CAN 1: General communication in the VCU
+#define CAN1_TX                 PD_1        //
 
-#define CAN2_RX                 PB_5    //
-#define CAN2_TX                 PB_6   //
+#define CAN2_RX                 PB_5        // CAN 2: Communication with the motor controller
+#define CAN2_TX                 PB_6        // 
 
-#define CAN1_FREQUENCY           1e6     //CAN frequency in Hz
-#define CAN2_FREQUENCY           1e6     //CAN frequency in Hz (for CAN 2.0, its 1Mbit/s [1MHz])
-
-//#define I2C_SCL                 PF_1
-//#define I2C_SDA                 PF_0
-
-
-
+#define CAN1_FREQUENCY           1e6        // CAN 1 frequency in Hz
+#define CAN2_FREQUENCY           1e6        // CAN 2 frequency in Hz (for CAN 2.0, its 1MHz [1Mbit/s])
 
 
 /*===================================== Objetcs =====================================*/
@@ -67,65 +64,56 @@ PedalSensor APPS_2(APPS2_PIN, APPS2_VMIN, APPS2_VMAX);                          
 SteeringSensor Steering_sensor (Steering_WHEEL_PIN, STEERING_VMIN, STEERING_VMAX);      // Steering Wheel sensor
 
 
-// Velocity Control system
-ControlSystem Motor_Control;    //
+// Velocity Control System
+ControlSystem Motor_Control(APPS_1, APPS_2, BSE, Steering_sensor);    // Motor Control
 
-//MPU9250 Sensor (Gyroscope, Accelerometer, and Temperature)
-//mpu
 
+
+/*===================================== Aux Functions =====================================*/
+void Run_Control();     // Routine to Read/Send control signal to the motor controllers
+
+
+
+/*===================================== Global  Variables =====================================*/
+// Structs
+VelocityStruct Wheel_Velocity;     // Struct for RPM Velocity in each wheel
+DcStruct Dc_Motor;
+RxStruct Inv1_data, Inv2_data;     // Structs for data received from each controller
+
+// Timers
+Ticker timer_1ms;                   // Timed Interruprt for every 1ms
 
 int main()
 {
     /*================================== INITIALIZATION ==================================*/
     // Comm. system Initializaion
-    CAN_Motor.set_CAN();
+    CAN_Motor.set_CAN();                    // CAN communication with both Motor Controllers
 
-
-    // useless, debug
-    uint16_t Apps1{0}, Apps2{0};    // Pedal Travel [0 to 16b]
-    uint16_t Break_sensor{0};
-    float Steering_dg{0};
-
-    //Structs
-    Rx_struct Inv1_data, Inv2_data;     // Data from Motor 1 and 2
-    Velocity_struct Wheel_Velocity;     // RPM Velocity in each wheel
+    // Timers and Interruprts
+    timer_1ms.attach(&Run_Control, 1ms);    // Runs Control system every 1 ms
 
     /*================================== LOOP ==================================*/
     while (true) {
 
-    //------------------------------ Receive Data from Inverters ---------------------------//
-        // Inv1_data=can1.receive_from_inverter();
-        // Inv2_data=can1.receive_from_inverter_2();
-        // Motor_Control.Motor_Error_Check(Inv1_data, Inv2_data);
-
-    //-------------------------------- Control System --------------------------------------------//
-        Wheel_Velocity = Motor_Control.control(APPS_1, APPS_2, BSE, Steering_sensor);
         
-
-        // debug:
-        // Wheel_Velocity = Motor_Control.control(APPS_1, APPS_2, BSE);
-        // Wheel_Velocity = Motor_Control.control(APPS_1, Steering_sensor);
-
-    //----------------------------- Send data to Inverters ------------------------------//
-        // can1.send_to_inverter_1(Wheel_Velocity.RPM_W1, 0);
-        // can1.send_to_inverter_2(Wheel_Velocity.RPM_W2, 0);
-
-
-
-
-    /*================================== Print/ Send Data ==================================*/
-
-        //Datalogger
-
-        // Steering_dg=Steering_sensor.read_angle();
-        // Apps1=APPS_1.read_pedal();
-
-        //Telemetry
-        // Telemetry_Test(Apps1, Steering_dg, 10.0);
-        // Telemetry_Print(Rx_apps);
-
-        wait_us(10e5);
-
     }
+}
+
+
+/*========================================== POWERTRAIN ==========================================*/
+// Motor control
+void Run_Control(){
+//------------------------------ Receive Data from Inverters ---------------------------//
+    Inv1_data=CAN_Motor.receive_from_inverter_1();      // Get data from Motor controller 1
+    Inv2_data=CAN_Motor.receive_from_inverter_2();      // Get data from Motor controller 1
+    Telemetry_Print(Inv1_data);         // Monitoring system
+
+//-------------------------------- Control System --------------------------------------------//
+    Dc_Motor = Motor_Control.control();       // Get Control Signal [Duty Cycle]
+
+//----------------------------- Send data to Inverters ------------------------------//
+    CAN_Motor.send_to_inverter_1(Dc_Motor.Dc_1, 0);     // Send control Signal to Controller 1
+    CAN_Motor.send_to_inverter_2(Dc_Motor.Dc_2, 0);     // Send control Signal to Controller 2
+
 }
 

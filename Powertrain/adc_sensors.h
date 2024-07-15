@@ -32,13 +32,14 @@
 #define PEDAL_MIN               0           //Minimum value for the Accelerator Pedal angle (Degrees)
 #define PEDAL_MAX               65535       //Maximum value for the Accelerator Pedal angle (Degrees)
 
+
 //Ultility Functions
-long current_ms();
+unsigned long current_ms();
 float map(float Variable, float in_min, float in_max, float out_min, float out_max);
 uint16_t map_u16 (float Variable, float in_min, float in_max, uint16_t out_min, uint16_t out_max);
 void Calibrate_ADC();
 
-/*================================== CLASSES ==================================*/
+/*================================== Angle Sensors ==================================*/
 //class for Acelleration Pedal, break Pedal, and Steering wheel
 class angle_sensor{
     //Atributes
@@ -58,54 +59,21 @@ class angle_sensor{
     public:
     float read_angle();                             // returns scaled angle
     bool Circuit_Error_Check(float voltage_in);     // tests if ADC voltage is within bounds of sensor
-    bool Circuit_Error_Check();                     // Returns Circuit Error
+    bool get_circuit_error();                       // Returns Circuit Error
     void Voltage_print();                           // prints pin's voltage
 
-    // uint16_t read_scaled_u16();     //
 
     //Constructors:
     angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max);
 };
 
-class PedalSensor: public angle_sensor{
-    private:
-    uint16_t Pedal_pos;     //Pedal Position [0% = 0 | 100% = 16b]
-    
-    public:
-    // Methods:
-    uint16_t read_pedal();  //Reads current Pedal Position
-    void Voltage_print();
-    
-    // Constructors:
-    PedalSensor(PinName adc_Pin, float _volt_min, float _volt_max);
-};
-
-class SteeringSensor: public angle_sensor{
-
-    public:
-    SteeringSensor(PinName adc_Pin, float _volt_min, float _volt_max);
-};
-
-/*======================================== Constructors ========================================*/
-
-//Angle Sensor
+// Angle Sensor's Constructor's
 inline angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max)
-:ADC_Pin{adc_Pin,VREF_ADC}, Volt_min{_volt_min},Volt_max{_volt_max}, Angle_min{_angle_min}, Angle_max{_angle_max}{
+    :ADC_Pin{adc_Pin,VREF_ADC}, Volt_min{_volt_min},Volt_max{_volt_max}, Angle_min{_angle_min}, Angle_max{_angle_max}{
     ADC_Pin.set_reference_voltage(3.3);
 };
 
-// Pedal Sensor
-inline PedalSensor::PedalSensor(PinName adc_Pin, float _volt_min, float _volt_max)
-    :angle_sensor{adc_Pin, _volt_min, _volt_max, 0, 100}{}
-
-
-//Steering Wheel Sensor
-inline SteeringSensor::SteeringSensor(PinName adc_Pin, float _volt_min, float _volt_max)
-    :angle_sensor{adc_Pin, _volt_min, _volt_max, Vol_ang_min, Vol_ang_max}{}
-
-
-
-/*======================================== Methods ========================================*/
+// --------------------------------- Angle Sensor's Methods ------------------------------ //
 
 // Reads the ADC pin and returns the angle value in degrees 
 inline float angle_sensor:: read_angle(){
@@ -117,35 +85,16 @@ inline float angle_sensor:: read_angle(){
         Angle= map(Current_ADC, Volt_min, Volt_max, Angle_min, Angle_max);
     }
 
-    // Implausibilty [short or open circuit]
-    if(Circuit_Error_Check(New_ADC)){
-        // Angle=0;
-    }
+    // // Implausibilty [short or open circuit]
+    // if(Circuit_Error_Check(New_ADC)){
+    //     // Angle=0;
+    // }
 
     return Angle;
 }
 
-// Reads the Pedal travel [0% = 0 | 100% = 16b]
-inline uint16_t PedalSensor:: read_pedal(){
-    float New_ADC = ADC_Pin.read_voltage();
 
-    // printf("\n NEW: %.2f , Current: %.2f, dif: %.2f\n",New_ADC, Current_ADC,abs(New_ADC - Current_ADC));
-    // If variation is bigger than the expected noise, updates measurement 
-    if(abs(New_ADC - Current_ADC) > MAX_NOISE){
-        Current_ADC= New_ADC;
-        Pedal_pos= map_u16(Current_ADC, Volt_min, Volt_max, PEDAL_MIN, PEDAL_MAX);
-    }
-
-
-    // Implausibilty [short or open circuit]
-    if(Circuit_Error_Check(New_ADC)){
-        // Pedal_pos=0;
-    }
-
-    return Pedal_pos;
-}
-
- // tests if ADC voltage read is within the sensor's bounds [short or open circuit]
+ // Tests if ADC voltage read is within the sensor's bounds [short or open circuit]
 inline bool angle_sensor::Circuit_Error_Check(float voltage_in){      
     if(voltage_in <= INPUT_MIN || voltage_in >= INPUT_MAX ){
         Circuit_ERROR=1;
@@ -158,16 +107,61 @@ inline bool angle_sensor::Circuit_Error_Check(float voltage_in){
 
     return Circuit_ERROR;
 }
-inline bool angle_sensor::Circuit_Error_Check(){      
+
+// Returns 
+inline bool angle_sensor::get_circuit_error(){      
     return Circuit_ERROR;
 }
 
+
+// Prints voltage read and 16b 
 inline void angle_sensor:: Voltage_print(){
     uint16_t Voltage_16bit=ADC_Pin.read_u16();
     printf("\n[VCU] ADC: Voltage_Read[16bit]: %d , Voltage[V]: %.2f V ",Voltage_16bit, ADC_Pin.read_voltage() );    
     printf("Angle: %.2f\n", Angle);
 }
 
+
+/*====================================== Pedal Sensors ======================================*/
+// Pedal Sensor Class (for the Accel. and break Pedals)
+class PedalSensor: public angle_sensor{
+    private:
+    uint16_t Pedal_pos;     // Pedal Travel [0% = 0 | 100% = 16b]
+    
+    public:
+    // Methods:
+    uint16_t read_pedal();  // Reads current Pedal Position
+    void Voltage_print();   // Print ADC voltage read and Pedal Travel
+    
+    // Constructors:
+    PedalSensor(PinName adc_Pin, float _volt_min, float _volt_max);
+};
+
+// Pedal Sensor's Constructos
+inline PedalSensor::PedalSensor(PinName adc_Pin, float _volt_min, float _volt_max)
+    :angle_sensor{adc_Pin, _volt_min, _volt_max, 0, 100}{}
+
+// --------------------------------- Pedal Sensor's METHODS ------------------------------ //
+// Reads the Pedal travel [0% = 0 | 100% = 16b]
+inline uint16_t PedalSensor:: read_pedal(){
+    float New_ADC = ADC_Pin.read_voltage();
+
+    // printf("\n NEW: %.2f , Current: %.2f, dif: %.2f\n",New_ADC, Current_ADC,abs(New_ADC - Current_ADC));
+    // If variation is bigger than the expected noise, updates measurement 
+    if(abs(New_ADC - Current_ADC) > MAX_NOISE){
+        Current_ADC= New_ADC;
+        Pedal_pos= map_u16(Current_ADC, Volt_min, Volt_max, PEDAL_MIN, PEDAL_MAX);
+    }
+
+    // // Implausibilty [short or open circuit]
+    // if(Circuit_Error_Check(New_ADC)){
+    //     // Pedal_pos=0;
+    // }
+
+    return Pedal_pos;
+}
+
+// Print ADC voltage and Pedal Travel
 inline void PedalSensor:: Voltage_print(){
     uint16_t Voltage_16bit=ADC_Pin.read_u16();
     double Percentage=(double(Voltage_16bit)/65535)*100;
@@ -177,13 +171,27 @@ inline void PedalSensor:: Voltage_print(){
 }
 
 
+/*================================== Steering Wheel Sensor ==================================*/
+// Steering Wheel Sensor Class
+class SteeringSensor: public angle_sensor{
+
+    public:
+    SteeringSensor(PinName adc_Pin, float _volt_min, float _volt_max);
+};
+// Constructos
+inline SteeringSensor::SteeringSensor(PinName adc_Pin, float _volt_min, float _volt_max)
+    :angle_sensor{adc_Pin, _volt_min, _volt_max, Vol_ang_min, Vol_ang_max}{}
+
+// Methods
+
+
 /*======================================== Auxiliar functions ========================================*/
 //time passed (in ms) since the program first started
-inline long current_ms(){
+inline unsigned long current_ms(){
     using namespace std::chrono;
-    auto now_us = time_point_cast<microseconds>(Kernel::Clock::now());  //time of referece= program's begin
-    long micros = now_us.time_since_epoch().count();                    //time (in us) since the reference 
-    return micros / 1000.0;                                             //turns time passed from us to ms
+    auto now_us = time_point_cast<microseconds>(Kernel::Clock::now());      //time of referece= program's begin
+    unsigned long micros = now_us.time_since_epoch().count();               //time (in us) since the reference 
+    return micros / 1000.0;                                                 //turns time passed from us to ms
 }
 
 //Maps the ADC float voltage read into the angle's range 

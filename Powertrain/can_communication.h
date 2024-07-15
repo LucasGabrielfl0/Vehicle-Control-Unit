@@ -38,7 +38,7 @@
 
 
 /*================================== Receive Struct ==================================*/
-struct Rx_struct{
+struct RxStruct{
     //Receiver Datafield in CAN 2.0 standard (In order)
     uint8_t     Msg_Counter{0};        //[0]
     float       Supply_Voltage{0};      //[1]
@@ -50,14 +50,14 @@ struct Rx_struct{
 };
 
 /*================================== Send Struct ==================================*/
-struct Tx_struct{
+struct TxStruct{
     //Transceiver Datafield in CAN 2.0 standard (In order)
     uint16_t    RPM_Limit{0};
     //motor pole pair is a constant
     uint16_t    Tx_PWM{0};
     uint16_t    Current_Limit{0};
-    bool        isBreak{0};    //1= break, 0= Throttle
-    bool        isReverse{0}; //1= Reverse, 0= Forward
+    bool        isBreak{0};         //1= break, 0= Throttle
+    bool        isReverse{0};       //1= Reverse, 0= Forward
 };
 
 
@@ -66,8 +66,8 @@ struct Tx_struct{
 class MotorCAN:public CAN{
 
     private:
-    Rx_struct Datafield_inv1; //saves the datafield received from Inverter 1
-    Rx_struct Datafield_inv2; //saves the datafield received from Inverter 2
+    RxStruct Datafield_inv1; //saves the datafield received from Inverter 1
+    RxStruct Datafield_inv2; //saves the datafield received from Inverter 2
 
     //Methods
     public:
@@ -82,13 +82,13 @@ class MotorCAN:public CAN{
     void send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak);
 
     // Receive data from both motor controllers
-    Rx_struct receive_from_inverter(unsigned int Inverter_Id);
-    Rx_struct receive_from_inverter_1();
-    Rx_struct receive_from_inverter_2();
+    RxStruct receive_from_inverter(unsigned int Inverter_Id);
+    RxStruct receive_from_inverter_1();
+    RxStruct receive_from_inverter_2();
     
     //print received data
     void Print_Datafields();
-    void Print_Datafield(int Num, Rx_struct Inv);
+    void Print_Datafield(int Num, RxStruct Inv);
     
     //Constructors
     public:
@@ -170,20 +170,20 @@ inline void MotorCAN:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, 
 
 /*==========================================  RECEIVE DATA ==========================================*/
 // Receives Data from Motor Controller 1
-inline Rx_struct MotorCAN:: receive_from_inverter_1(){
-    Rx_struct Datafield_1 =receive_from_inverter(INVERSOR_RX_ID);
+inline RxStruct MotorCAN:: receive_from_inverter_1(){
+    RxStruct Datafield_1 =receive_from_inverter(INVERSOR_RX_ID);
     return Datafield_1;
 }
 
 // Receives Data from Motor Controller 2
-inline Rx_struct MotorCAN:: receive_from_inverter_2(){
-    Rx_struct Datafield_2 =receive_from_inverter(INVERSOR_RX_ID_2);
+inline RxStruct MotorCAN:: receive_from_inverter_2(){
+    RxStruct Datafield_2 =receive_from_inverter(INVERSOR_RX_ID_2);
     return Datafield_2;
 }
 
 // Receives Data FROM Motor Controller
-inline Rx_struct MotorCAN:: receive_from_inverter(unsigned int Inverter_Id){
-    Rx_struct Datafield;
+inline RxStruct MotorCAN:: receive_from_inverter(unsigned int Inverter_Id){
+    RxStruct Datafield;
 
     //Aux variables
     int Voltage_Hb; //voltage High byte
@@ -229,14 +229,14 @@ inline void MotorCAN::Print_Datafields(){
     
 }
 
-inline void Print_Datafield(int Num, Rx_struct Inv){
+inline void Print_Datafield(int Num, RxStruct Inv){
     printf("\r\n\t[CAN] Inverter %d: Volt=%.1f V, T_Ctrl= %d°C ,T_Motor = %d°C , RPM = %d, PWM = %.2f (%.2f %%), Ic= %d A",
     Num, Inv.Supply_Voltage ,Inv.Temp_Controller ,
          Inv.Temp_motor    ,Inv.RPM ,
          Inv.rx_PWM, (Inv.rx_PWM/255.0f)*100,Inv.Current );
 }
 
-inline void Print_Datafield_3(Rx_struct Motor_Data){
+inline void Print_Datafield_3(RxStruct Motor_Data){
     printf("\r\n\t[CAN]Volt=%.1f V , RPM = %d Ic= %d A", 
     Motor_Data.Supply_Voltage , Motor_Data.RPM , Motor_Data.Current );
     
