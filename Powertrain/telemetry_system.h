@@ -16,6 +16,16 @@
 #include "control_system.h"
 #include "can_communication.h"
 
+class TelemetrySystem{
+    uint8_t Ts_ms;
+
+
+    void send();
+};
+
+
+
+
 void Telemetry_Test(uint16_t val1, float val2, float val3);
 void Telemetry_Print(RxStruct Motor);
 void Print_Sensors(uint16_t Apps1, uint16_t Apps2, uint16_t BSE, float Steering);

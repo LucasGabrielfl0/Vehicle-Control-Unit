@@ -11,10 +11,8 @@
 #include "mbed.h"
 #include <cstdint>
 #include "Powertrain.h"
-
+#include "rtos.h"
 // main() runs in its own thread in the OS
-
-
 
 /*===================================== ADC PORTS (STM32 F746ZG) =====================================*/
 #define Steering_WHEEL_PIN      PC_2
@@ -63,21 +61,18 @@ PedalSensor APPS_1(APPS1_PIN ,APPS1_VMIN, APPS1_VMAX);                          
 PedalSensor APPS_2(APPS2_PIN, APPS2_VMIN, APPS2_VMAX);                                  // Accel. Pedal sensor 2
 SteeringSensor Steering_sensor (Steering_WHEEL_PIN, STEERING_VMIN, STEERING_VMAX);      // Steering Wheel sensor
 
-
 // Velocity Control System
-ControlSystem Motor_Control(APPS_1, APPS_2, BSE, Steering_sensor);    // Motor Control
+ControlSystem Motor_Control(APPS_1, APPS_2, BSE, Steering_sensor);                      // Motor Control
+ControlSystem Motor_1(APPS_1, APPS_2, BSE, Steering_sensor);            // Motor Control
+ControlSystem Motor_2(APPS_1, APPS_2, BSE, Steering_sensor);            // Motor Control
 
-
-
-/*===================================== Aux Functions =====================================*/
+//*===================================== Aux Functions =====================================*//
 void Run_Control();     // Routine to Read/Send control signal to the motor controllers
-
+void getData();         //       
 
 
 /*===================================== Global  Variables =====================================*/
 // Structs
-VelocityStruct Wheel_Velocity;     // Struct for RPM Velocity in each wheel
-DcStruct Dc_Motor;
 RxStruct Inv1_data, Inv2_data;     // Structs for data received from each controller
 
 // Timers
@@ -89,31 +84,63 @@ int main()
     // Comm. system Initializaion
     CAN_Motor.set_CAN();                    // CAN communication with both Motor Controllers
 
+
+
     // Timers and Interruprts
     timer_1ms.attach(&Run_Control, 1ms);    // Runs Control system every 1 ms
 
     /*================================== LOOP ==================================*/
     while (true) {
-
-        
+        /* does something?*/
+        getData();       
     }
 }
 
 
+
+
 /*========================================== POWERTRAIN ==========================================*/
-// Motor control
-void Run_Control(){
-//------------------------------ Receive Data from Inverters ---------------------------//
-    Inv1_data=CAN_Motor.receive_from_inverter_1();      // Get data from Motor controller 1
-    Inv2_data=CAN_Motor.receive_from_inverter_2();      // Get data from Motor controller 1
-    Telemetry_Print(Inv1_data);         // Monitoring system
+/* Gets data from the Inverters*/
+void getData(){
+    Inv1_data = CAN_Motor.receive_from_inverter_1();      // Get data from Motor controller 1
+    Inv2_data = CAN_Motor.receive_from_inverter_2();      // Get data from Motor controller 1
+    // Telemetry_Print(Inv1_data);                         // Monitoring system
+    
+}
 
-//-------------------------------- Control System --------------------------------------------//
-    Dc_Motor = Motor_Control.control();       // Get Control Signal [Duty Cycle]
+/* Open Loop Control*/
+void OpenLoop(void * params){
+    // Control System 
+    // Dc_Motor = Motor_Control.control();                 // Get Control Signal [Duty Cycle]
 
-//----------------------------- Send data to Inverters ------------------------------//
-    CAN_Motor.send_to_inverter_1(Dc_Motor.Dc_1, 0);     // Send control Signal to Controller 1
-    CAN_Motor.send_to_inverter_2(Dc_Motor.Dc_2, 0);     // Send control Signal to Controller 2
+    // Electronic Differential
 
+    // Send data to Inverters 
+    // CAN_Motor.send_to_inverter_1(Dc_Motor.Dc_1, 0);     // Send control Signal to Controller 1
+    // CAN_Motor.send_to_inverter_2(Dc_Motor.Dc_2, 0);     // Send control Signal to Controller 2
+}
+
+/* Closed Loop Control*/
+void Run_Control3(void * params){
+    uint16_t Dc_Motor[2]{0};
+    float Wm_ref[2]{0};
+    float Wm_M1, Wm_M2;
+
+    // Electronic Differential [Setpoint based on the Apps and Steering Wheel]
+    ElectronicDifferential(1,1,1,Wm_ref);
+
+    // Control System
+    Dc_Motor[0]= Motor_1.control(Wm_M1, Wm_ref[0]);
+    Dc_Motor[1]= Motor_2.control(Wm_M2, Wm_ref[1]);
+    
+    // Send data to Inverters 
+    CAN_Motor.send_to_inverter_1(Dc_Motor[0], 0);     // Send control Signal to Controller 1
+    CAN_Motor.send_to_inverter_2(Dc_Motor[1], 0);     // Send control Signal to Controller 2
+}
+
+
+/* Safety Check*/
+void PlausibilityCheck(void * params){
+    
 }
 
