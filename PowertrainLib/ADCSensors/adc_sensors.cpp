@@ -14,44 +14,33 @@ inline angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_m
 /* Reads the ADC pin and returns the angle value in degrees */ 
 inline float angle_sensor:: read_angle(){
     float New_ADC = ADC_Pin.read_voltage();
-    
+
+    /* Tests if ADC voltage read is within the sensor's bounds [short or open circuit] */
+    if(New_ADC<Volt_min || New_ADC>Volt_max){
+        printf("\nCIRCUIT: ERROR DETECTED\n");
+        Circuit_ERROR=1;
+    }
+    else{
+        Circuit_ERROR=0;
+    }
+
     // If variation is bigger than the expected noise, updates measurement 
     if(abs(New_ADC - Current_ADC) > MAX_NOISE){
         Current_ADC= New_ADC;
         Angle= map(Current_ADC, Volt_min, Volt_max, Angle_min, Angle_max);
     }
 
-    // // Implausibilty [short or open circuit]
-    // if(Circuit_Error_Check(New_ADC)){
-    //     // Angle=0;
-    // }
-
     return Angle;
 }
 
-
-/* Tests if ADC voltage read is within the sensor's bounds [short or open circuit] */
-inline bool angle_sensor::Circuit_Error_Check(float voltage_in){      
-    if(voltage_in <= INPUT_MIN || voltage_in >= INPUT_MAX ){
-        Circuit_ERROR=1;
-        printf("\nCIRCUIT: ERROR DETECTED\n");
-    
-    }
-    else{
-        Circuit_ERROR=0;
-    }
-
-    return Circuit_ERROR;
-}
-
 /* */
-inline bool angle_sensor::get_circuit_error(){      
+bool angle_sensor::get_circuit_error(){      
     return Circuit_ERROR;
 }
 
 
 /* Prints voltage read and 16b */
-inline void angle_sensor:: Voltage_print(){
+void angle_sensor:: Voltage_print(){
     uint16_t Voltage_16bit=ADC_Pin.read_u16();
     printf("\n[VCU] ADC: Voltage_Read[16bit]: %d , Voltage[V]: %.2f V ",Voltage_16bit, ADC_Pin.read_voltage() );    
     printf("Angle: %.2f\n", Angle);
@@ -68,6 +57,9 @@ inline PedalSensor::PedalSensor(PinName adc_Pin, float _volt_min, float _volt_ma
 inline uint16_t PedalSensor:: read_pedal(){
     float New_ADC = ADC_Pin.read_voltage();
 
+    if(New_ADC<Volt_min || New_ADC>Volt_max){
+        
+    }
     // printf("\n NEW: %.2f , Current: %.2f, dif: %.2f\n",New_ADC, Current_ADC,abs(New_ADC - Current_ADC));
     // If variation is bigger than the expected noise, updates measurement 
     if(abs(New_ADC - Current_ADC) > MAX_NOISE){
@@ -75,16 +67,11 @@ inline uint16_t PedalSensor:: read_pedal(){
         Pedal_pos= map_u16(Current_ADC, Volt_min, Volt_max, PEDAL_MIN, PEDAL_MAX);
     }
 
-    // // Implausibilty [short or open circuit]
-    // if(Circuit_Error_Check(New_ADC)){
-    //     // Pedal_pos=0;
-    // }
-
     return Pedal_pos;
 }
 
 /* Print ADC voltage and Pedal Travel */
-inline void PedalSensor:: Voltage_print(){
+void PedalSensor:: Voltage_print(){
     uint16_t Voltage_16bit=ADC_Pin.read_u16();
     double Percentage=(double(Voltage_16bit)/65535)*100;
 
@@ -145,8 +132,4 @@ inline uint16_t map_u16 (float Variable, float in_min, float in_max, uint16_t ou
     return Mapped_Variable;
 }
 
-
-inline void Calibrate_ADC(){
-
-}
 

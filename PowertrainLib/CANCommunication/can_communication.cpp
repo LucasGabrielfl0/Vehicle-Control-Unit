@@ -112,7 +112,7 @@ inline RxStruct MotorCAN:: receive_from_inverter(unsigned int Inverter_Id){
                 
                 Datafield.RPM= (inverter_rx_msg.data[5]<< 8) | inverter_rx_msg.data[4] ;
                 
-                Datafield.rx_PWM=(inverter_rx_msg.data[6]/255.0f)*100;
+                Datafield.PWM_read=(inverter_rx_msg.data[6]/255.0f)*100;
                 Datafield.Current = inverter_rx_msg.data[7];            
             
             }
@@ -139,7 +139,7 @@ inline void Print_Datafield(int Num, RxStruct Inv){
     printf("\r\n\t[CAN] Inverter %d: Volt=%.1f V, T_Ctrl= %d°C ,T_Motor = %d°C , RPM = %d, PWM = %.2f (%.2f %%), Ic= %d A",
     Num, Inv.Supply_Voltage ,Inv.Temp_Controller ,
          Inv.Temp_motor    ,Inv.RPM ,
-         Inv.rx_PWM, (Inv.rx_PWM/255.0f)*100,Inv.Current );
+         Inv.PWM_read, (Inv.PWM_read/255.0f)*100,Inv.Current );
 }
 
 inline void Print_Datafield_3(RxStruct Motor_Data){
@@ -147,7 +147,7 @@ inline void Print_Datafield_3(RxStruct Motor_Data){
     Motor_Data.Supply_Voltage , Motor_Data.RPM , Motor_Data.Current );
     
     // Dc Pwm
-    printf(" PWM = %.2f , (%.2f %%)", Motor_Data.rx_PWM, (Motor_Data.rx_PWM/65535.0)*100.0);
+    printf(" PWM = %.2f , (%.2f %%)", Motor_Data.PWM_read, (Motor_Data.PWM_read/65535.0)*100.0);
 
     // Temperature
     printf(" Tc= %d°C , Tm = %d°C", Motor_Data.Temp_Controller , Motor_Data.Temp_motor);

@@ -40,20 +40,20 @@
 /*================================== Receive Struct ==================================*/
 struct RxStruct{
     //Receiver Datafield in CAN 2.0 standard (In order)
-    uint8_t     Msg_Counter{0};        //[0]
-    float       Supply_Voltage{0};      //[1]
-    int16_t     Temp_Controller{0};
-    int16_t     Temp_motor{0};
-    uint16_t    RPM{0};
-    float       rx_PWM{0};
-    uint8_t     Current{0};
+    uint8_t     Msg_Counter{0};             //
+    float       Supply_Voltage{0};          // [V]
+    int16_t     Temp_Controller{0};         // [°C]
+    int16_t     Temp_motor{0};              // [°C]
+    uint16_t    RPM{0};                     // [RPM]
+    float       PWM_read{0};                 // 0 - 100 [%]
+    uint8_t     Current{0};                 // [A]
 };
 
 /*================================== Send Struct ==================================*/
 struct TxStruct{
     //Transceiver Datafield in CAN 2.0 standard (In order)
     uint16_t    RPM_Limit{0};
-    //motor pole pair is a constant
+    // motor pole pair is a constant
     uint16_t    Tx_PWM{0};
     uint16_t    Current_Limit{0};
     bool        isBreak{0};         //1= break, 0= Throttle
