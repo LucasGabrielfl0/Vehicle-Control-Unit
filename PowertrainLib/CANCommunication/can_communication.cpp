@@ -51,7 +51,7 @@ inline void MotorCAN:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, 
     inverter_tx_msg.id= Motor_Id;   // Id
     inverter_tx_msg.len = 8;        // Datafield size [Bytes], the max size is 8
  
-    inverter_tx_msg.data[0] = MAX_RPM_LIMIT & 0xFF;                 //  LSB RPM
+    inverter_tx_msg.data[0] = MAX_RPM_LIMIT & 0xFF;                 // LSB RPM
     inverter_tx_msg.data[1] = MAX_RPM_LIMIT >> 8;                   // MSB RPM
     inverter_tx_msg.data[2] = MOTOR_POLE_PAIRS;                     // Constant (15 pairs)
     inverter_tx_msg.data[3] = DC_pwm & 0xFF;                        // LSB PWM (DutyCycle)
@@ -77,18 +77,18 @@ inline void MotorCAN:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, 
 /*==========================================  RECEIVE DATA ==========================================*/
 /* Receives Data from Motor Controller 1 */
 inline RxStruct MotorCAN:: receive_from_inverter_1(){
-    RxStruct Datafield_1 =receive_from_inverter(INVERSOR_RX_ID);
+    RxStruct Datafield_1 = receive_from_inverter(INVERSOR_RX_ID);
     return Datafield_1;
 }
 
 /* Receives Data from Motor Controller 2 */
 inline RxStruct MotorCAN:: receive_from_inverter_2(){
-    RxStruct Datafield_2 =receive_from_inverter(INVERSOR_RX_ID_2);
+    RxStruct Datafield_2 = receive_from_inverter(INVERSOR_RX_ID_2);
     return Datafield_2;
 }
 
 /* Receives Data from Motor Controller */
-inline RxStruct MotorCAN:: receive_from_inverter(unsigned int Inverter_Id){
+RxStruct MotorCAN:: receive_from_inverter(unsigned int Inverter_Id){
     RxStruct Datafield;
 
     //Aux variables
@@ -129,20 +129,20 @@ inline RxStruct MotorCAN:: receive_from_inverter(unsigned int Inverter_Id){
 
 
 /*==========================================  PRINT DATA ==========================================*/
-inline void MotorCAN::Print_Datafields(){
+void MotorCAN::Print_Datafields(){
     Print_Datafield(1, Datafield_inv1);
     Print_Datafield(2, Datafield_inv2);
     
 }
 
-inline void Print_Datafield(int Num, RxStruct Inv){
+void Print_Datafield(int Num, RxStruct Inv){
     printf("\r\n\t[CAN] Inverter %d: Volt=%.1f V, T_Ctrl= %d°C ,T_Motor = %d°C , RPM = %d, PWM = %.2f (%.2f %%), Ic= %d A",
     Num, Inv.Supply_Voltage ,Inv.Temp_Controller ,
          Inv.Temp_motor    ,Inv.RPM ,
          Inv.PWM_read, (Inv.PWM_read/255.0f)*100,Inv.Current );
 }
 
-inline void Print_Datafield_3(RxStruct Motor_Data){
+void Print_Datafield_3(RxStruct Motor_Data){
     printf("\r\n\t[CAN]Volt=%.1f V , RPM = %d Ic= %d A", 
     Motor_Data.Supply_Voltage , Motor_Data.RPM , Motor_Data.Current );
     

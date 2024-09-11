@@ -52,7 +52,7 @@ class TelemetrySystem{
 
 
 /*==================================  MOTOR MONITOR INTERFACE ==================================*/
-// inline void Telemetry_Print(RxStruct Motor){
+// void Telemetry_Print(RxStruct Motor){
 // // message= '[CAN]: Time= 3000.20 ms || PWM= 100% || RPM= 300 || Vs=300 V || Ic= 200 A  || Tm= 20 °C || Tc= 21 °C'
 //     float time_sec= float(current_ms())/1000;
 //     // printf("\n==================================================================\n");
@@ -63,11 +63,11 @@ class TelemetrySystem{
 // }
 
 
-inline void Print_Duty_c(uint16_t Vel){
-    double Percentage=(double(Vel)/65535)*100;
-    printf("\n Power [%%]: %.2f %%\n",Percentage);
+// void Print_Duty_c(uint16_t Vel){
+//     double Percentage=(double(Vel)/65535)*100;
+//     printf("\n Power [%%]: %.2f %%\n",Percentage);
 
-}
+// }
 
 inline void Print_Sensors(float Apps1,float Apps2, float BSE, float Steering){
     printf("\n APPS1: %.2f , APPS2: %.2f",Apps1, Apps2);

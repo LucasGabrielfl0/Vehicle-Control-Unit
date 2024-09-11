@@ -21,11 +21,9 @@
 #define MAX_TC      40                          // Motor Controller [inverter] Max temperature [°C]
 #define MAX_TM      40                          // Motor Max temperature [°C]
 
-
 /*==================================== CONTROL PARAMETERS ====================================*/
-#define MAX_RPM     8000                         // PI constant 
 #define PI  3.14159265358979323846                  // PI constant 
-
+const uint16_t MAX_RPM  =   8000;                   // PI constant
 
 /*==================================== MECHANIC PARAMETERS ====================================*/
 const float TRACK_WIDTH =  1.0;                     // [m] "Bitola" distance between the wheels on the same axle

@@ -15,25 +15,23 @@
 #include <cstdint>
 
 /*================================== COMMUNICATION PARAMETERS ==================================*/
-#define INVERSOR_TX_ID 0x100
-#define INVERSOR_RX_ID 0x101
+#define INVERSOR_TX_ID      0x100
+#define INVERSOR_RX_ID      0x101
 
-#define INVERSOR_TX_ID_2 0x200
-#define INVERSOR_RX_ID_2 0x201
+#define INVERSOR_TX_ID_2    0x200
+#define INVERSOR_RX_ID_2    0x201
+
+#define MAX_CAN_DATA_SIZE   8
+#define MOTOR_POLE_PAIRS    15          //Number of Pole Pairs in the Motor
+
 
 #define MAXRPM 9000
 #define MAXPWM 65535
-#define MAX_CAN_DATA_SIZE 8
 
-#define MOTOR_POLE_PAIRS 15            //Number of Pole Pairs in the Motor
-
-#define N_LEITURAS 10
-#define SENSOR_MIN_OFFSET_5V 6650  // Para 5 volts utilizando uma fonte debancada
-#define SENSOR_MAX_OFFSET_5V 65535
 
 /*==================================== SAFETY PARAMETERS ====================================*/
-#define MAX_CURRENT_LIMIT       10          // Max Phase Current in the motor [A]
-#define MAX_RPM_LIMIT           4500        // Max Velocity of the motor [RPM] 
+#define MAX_CURRENT_LIMIT       38          // Max Phase Current in the motor [A]
+#define MAX_RPM_LIMIT           9000        // Max Velocity of the motor [RPM] 
 
 
 
@@ -45,7 +43,7 @@ struct RxStruct{
     int16_t     Temp_Controller{0};         // [°C]
     int16_t     Temp_motor{0};              // [°C]
     uint16_t    RPM{0};                     // [RPM]
-    float       PWM_read{0};                 // 0 - 100 [%]
+    float       PWM_read{0};                // 0 - 100 [%]
     uint8_t     Current{0};                 // [A]
 };
 

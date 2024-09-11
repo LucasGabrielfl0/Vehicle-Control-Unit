@@ -31,16 +31,24 @@ void ControlSystem::OpenLoop(float DutyC){
 /* Closed Loop Control */
 uint16_t ControlSystem::control_RPM(uint16_t RPM_c, uint16_t RPM_setpoint){
     uint16_t Dc_16b;
-
+    float Ts = float(Ts_ms)/1000;
+    
     // Current Error:
     ek[0] = RPM_setpoint - RPM_c;
 
-    // Controller
-    uk[0] = ek[0]*Kp;
+    // PID Controller [Backwards Euler]
+    uk[0] = Kp*(ek[0] - ek[1] ) + Ki*Ts*ek[0] + Kd*(ek[0] - 2*ek[1] + ek[2])  + uk[1];
+
+    // PID Controller [Bilinear Transform]
+    // float Ukp = Kp * ( ek[0] - ek[2]);
+    // float Uki = (Ki*Ts/2) * ( ek[0] + 2*ek[1] + ek[2] );
+    // float Ukd = (Kd*2/Ts) * ( ek[0] - 2*ek[1] + ek[2] );
+    // uk[0] = Ukp + Uki + Ukd + uk[2];
+
 
     // Saturation
-    if(uk[0]>1){
-        uk[0]=1;
+    if(uk[0]>100){
+        uk[0]=100;
     }
 
     if(uk[0]<0){
@@ -85,13 +93,13 @@ void ControlSystem::DifferentialControl(float Steering, uint16_t apps, uint16_t 
 
 /*========================================= ELECTRONIC DIFFERENTIAL =========================================*/
 // Calculates the Velocity [in RPM] of each wheel during a turn, W1 = [LEFT WHEEL] || W2 = [RIGHT WHEEL]
-void CalcDifferential(float Steering_dg, uint16_t Acc_pedal, uint16_t RPM_dif[]){
+void CalcDifferential(float Steering_dg, float Acc_pedal, uint16_t RPM_dif[]){
     int64_t RPM_W1,RPM_W2, Wv_rpm;
     float Ack_rad;
     float del_W;
 
     // APPS to RPM
-    Wv_rpm= Acc_pedal;
+    Wv_rpm= Acc_pedal*(MAX_RPM/100.0);
 
     // For very low angles in the Steering wheel, there's no change
     if( abs(Steering_dg)< 5){
@@ -143,8 +151,8 @@ void ElectronicDifferential(float Steering_dg, float apps, float Wc_Motor[]){
     // int64_t MAX_RPM; 
     int64_t MIN_RPM; 
 
-    // APPS to RPM
-    Wv_rpm= apps;
+    // Maps APPS to RPM
+    Wv_rpm= MAX_RPM*float(apps/UINT16_MAX);
 
     // For very low angles in the Steering wheel, there's no change
     if( abs(Steering_dg)< 5){
@@ -192,12 +200,12 @@ void ElectronicDifferential(float Steering_dg, float apps, float Wc_Motor[]){
 /* Closed Loop Control */
 uint16_t ControlSystem::control(float vel, float setpoint){
     uint16_t Dc_16b;
-
+    int Ts = Ts_ms*1000;
     //Current Error:
     ek[0]= setpoint-vel;
 
-    // Controller
-    uk[0] = ek[0]*Kp;
+    // PID Controller [Backwards Euler]
+    uk[0] = Kp*(ek[0] - ek[1] ) + Ki*Ts*ek[0] + Kd*(ek[0] - 2*ek[1] + ek[2])  + uk[1];
 
     // Saturation
     if(uk[0]>1){
@@ -214,6 +222,10 @@ uint16_t ControlSystem::control(float vel, float setpoint){
 
     ek[2]=ek[1];
     ek[1]=ek[0];
+
+
+    // PID Controller [Bilinear Transform]
+
 
     // Return the Dutycycle as 16b uint
     Dc_16b= UINT16_MAX*uk[0];
@@ -286,7 +298,7 @@ void OpenLoopDifferential(float Steering_dg, uint16_t Apps, uint16_t Dc_Motor[])
 // Every 10ms, checks if there's a discrepancy bigger than 10% lastting more then 100 ms
 bool APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2){
     bool AppsError_flag,Error_APPS;
-    unsigned int Error_Counter{0};
+    uint8_t Error_Counter{0};
 
     // Checks 10% discrepancy
     if ( abs(Apps_1 - Apps_2) > (0.1 * max(Apps_1, Apps_2)) ){
@@ -297,9 +309,11 @@ bool APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2){
         Error_Counter= 0;      //if error ceased resets counter
     }
     
-    // If Implausibility lasts 10 iterations (100 ms), theres error
-    if(Error_Counter >=10){
+    // If Implausibility lasts 4 iterations (80ms - 100 ms), theres error
+    if(Error_Counter >=4){
         return 1;
+        if(Error_Counter > 4)
+        { Error_Counter =4; }
     }
     else{
         return 0;
