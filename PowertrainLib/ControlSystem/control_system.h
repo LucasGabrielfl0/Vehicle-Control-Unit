@@ -26,9 +26,9 @@
 const uint16_t MAX_RPM  =   8000;                   // PI constant
 
 /*==================================== MECHANIC PARAMETERS ====================================*/
-const float TRACK_WIDTH =  1.0;                     // [m] "Bitola" distance between the wheels on the same axle
-const float WHEELBASE   =  1.0;                     // [m] Distance between the front and rear axles           
-const float KC =  TRACK_WIDTH / ( 2*WHEELBASE );    // [adm] constant for Differential
+const float TRACK_WIDTH =  1.4;                     // [m] "Bitola" distance between the wheels on the same axle
+const float WHEELBASE   =  1.8;                     // [m] Distance between the front and rear axles           
+const float K_DIF =  TRACK_WIDTH / ( 2*WHEELBASE );    // [adm] constant for Differential
 
 
 
@@ -77,8 +77,6 @@ class ControlSystem {
     ControlSystem();
 };
 
-bool APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2);                // Acc. pedal Plausibility
-bool BSE_Error_check(uint16_t Apps_val, uint16_t Brake_val);            // Break pedal Plausibility
 // void Temp_Error_Check(RxStruct Inverter_1, RxStruct Inverter_2);       //
 
 

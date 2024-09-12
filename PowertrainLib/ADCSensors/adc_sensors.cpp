@@ -1,5 +1,54 @@
 #include "adc_sensors.h"
 
+/*================================== ACCELERATION PEDAL PLAUSIBILITY CHECK ==================================*/
+// Every 10ms, checks if there's a discrepancy bigger than 10% lastting more then 100 ms
+bool APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2, uint8_t* Error_Count){
+    uint8_t Error_Counter = *Error_Count;
+
+    // Checks 10% discrepancy
+    if ( abs(Apps_1 - Apps_2) > (0.1 * max(Apps_1, Apps_2)) ){
+        // if there's discrepancy, adds in counter
+        Error_Counter++;
+    }
+    else { 
+        Error_Counter= 0;      //if error ceased resets counter
+    }
+    
+    // If Implausibility lasts 4 iterations (80ms - 100 ms response time), Sets Error
+    if(Error_Counter >=4){
+        printf("APPS ERROR DETECTED");
+        Error_Counter =4;
+        return 1;
+    }
+    else{
+        return 0;
+    }
+
+}
+
+/*====================================== BRAKE PEDAL PLAUSIBILITY CHECK ======================================*/
+// Checks if the Accel. and Brake Were both pressed at the same time
+bool BSE_Error_check(uint16_t Apps_val, uint16_t Brake_val, bool Error_BPPC){    
+    //If APPS >= 25% of pedal travel and Brake is pressed, stops the car 
+    if ( (Apps_val >= 0.25*PEDAL_MAX) && (Brake_val >= 0.02*PEDAL_MAX) ){
+        Error_BPPC = 1;
+    }
+
+    // Error only Stops if APPS goes below 5% of pedal travel
+    if(Apps_val < 0.05*PEDAL_MAX){
+        Error_BPPC = 0;
+    }
+
+    if(Error_BPPC){
+        printf("BSE: ERROR IN PROGRESS");
+    }
+    return Error_BPPC;
+}
+
+
+
+
+
 /*================================== Angle Sensors ==================================*/
 // Constructors
 inline angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max)
@@ -131,5 +180,4 @@ inline uint16_t map_u16 (float Variable, float in_min, float in_max, uint16_t ou
     
     return Mapped_Variable;
 }
-
 

@@ -33,11 +33,32 @@
 #define PEDAL_MAX               65535       //Maximum value for the Accelerator Pedal angle (Degrees)
 
 
+/*===================================== ADC INPUT VOLTAGES  =====================================*/
+//Steering Wheel Parameters
+#define STEERING_VMIN           0.325       // Steering Wheel Sensors Minimum input voltage
+#define STEERING_VMAX           3.0         // Steering Wheel Sensors Sensors Maximum input voltage
+
+//BSE (Break System Enconder) Parameters
+#define BSE_VMIN                0.3         // BSE Sensors Minimum input voltage
+#define BSE_VMAX                3.0         // BSE Sensors Minimum input voltage
+
+//APPS (Accelerator Pedal Position Sensor) Parameters
+#define APPS1_VMIN              0.28        // APPS1 Minimum input voltage
+#define APPS1_VMAX              3.0         // APPS1 Maximum input voltage
+
+#define APPS2_VMIN              0.28        // APPS2 Minimum input voltage
+#define APPS2_VMAX              3.0         // APPS2 Maximum input voltage
+
+
 //Ultility Functions
 unsigned long current_ms();
 float map(float Variable, float in_min, float in_max, float out_min, float out_max);
 uint16_t map_u16 (float Variable, float in_min, float in_max, uint16_t out_min, uint16_t out_max);
 void Calibrate_ADC();
+
+// Safety Checks
+bool APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2, uint8_t* Error_Count);  // Acc. pedal Plausibility
+bool BSE_Error_check(uint16_t Apps_val, uint16_t Brake_val, bool Error_BPPC);   // Brake pedal Plausibility
 
 /*================================== Angle Sensors ==================================*/
 //class for Acelleration Pedal, break Pedal, and Steering wheel

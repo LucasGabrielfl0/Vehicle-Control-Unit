@@ -22,22 +22,6 @@
 #define APPS_PIN_OUT            PA_5
 #define BSPD_PIN                PF_12
 
-/*===================================== ADC INPUT VOLTAGES  =====================================*/
-//Steering Wheel Parameters
-#define STEERING_VMIN           0.325       // Steering Wheel Sensors Minimum input voltage
-#define STEERING_VMAX           3.0         // Steering Wheel Sensors Sensors Maximum input voltage
-
-//BSE (Break System Enconder) Parameters
-#define BSE_VMIN                0.3         // BSE Sensors Minimum input voltage
-#define BSE_VMAX                3.0         // BSE Sensors Minimum input voltage
-
-//APPS (Accelerator Pedal Position Sensor) Parameters
-#define APPS1_VMIN              0.28        // APPS1 Minimum input voltage
-#define APPS1_VMAX              3.0         // APPS1 Maximum input voltage
-
-#define APPS2_VMIN              0.28        // APPS2 Minimum input voltage
-#define APPS2_VMAX              3.0         // APPS2 Maximum input voltage
-
 /*===================================== COMMUNICATION PORTS (STM32 F746ZG) =====================================*/
 // CAN
 #define CAN1_RX                 PD_0        // CAN 1: General communication in the VCU
@@ -50,18 +34,18 @@
 #define CAN2_FREQUENCY           1e6        // CAN 2 frequency in Hz (for CAN 2.0, its 1MHz [1Mbit/s])
 
 
-/*===================================== CONTROL SYSTEM =====================================*/
-const float     Kp      = 1.000;          // Proporcional Gain         
-const float     Ki      = 1.000;          // Integral Gain
-const float     Kd      = 1.000;          // Derivative Gain
-const uint16_t  Ts_ms   = 1;              // Sample time in ms        
+// /*===================================== CONTROL SYSTEM =====================================*/
+// const float     Kp      = 1.000;          // Proporcional Gain         
+// const float     Ki      = 1.000;          // Integral Gain
+// const float     Kd      = 1.000;          // Derivative Gain
+// const uint16_t  Ts_ms   = 1;              // Sample time in ms        
 
 
 //*===================================== Aux Functions =====================================*//
-void OpenLoop();        // Open Loop Control
-void RunControl();      // Closed Loop Control + Differential
-void getData();         // Get motor Data via CAN
-void ReadCAN();
+void OpenLoop();                // Open Loop Control
+void RunControl();              // Closed Loop Control
+void ReadCAN();                 //
+void PlausibilityCheck();       //
 
 /*=================================================== Objetcs =====================================================*/
 // Communication
@@ -69,24 +53,27 @@ CAN CAN_VCU(CAN1_RX, CAN1_TX, CAN2_FREQUENCY);                                  
 MotorCAN CAN_Motor(CAN2_RX, CAN2_TX, CAN2_FREQUENCY);                                   // Motor/Inverter CAN (Hv)
 
 // Pedal and Steering wheel Sensors
-PedalSensor BSE(BSE_PIN, BSE_VMIN, BSE_VMAX);                                           // Break Pedal sensor
+PedalSensor BSE(BSE_PIN, BSE_VMIN, BSE_VMAX);                                           // Brake Pedal sensor
 PedalSensor APPS_1(APPS1_PIN ,APPS1_VMIN, APPS1_VMAX);                                  // Accel. Pedal sensor 1
 PedalSensor APPS_2(APPS2_PIN, APPS2_VMIN, APPS2_VMAX);                                  // Accel. Pedal sensor 2
 SteeringSensor Steering_sensor (Steering_WHEEL_PIN, STEERING_VMIN, STEERING_VMAX);      // Steering Wheel sensor
 
 // Velocity Control System
-ControlSystem Motor(Kp,Ki,Kd,Ts_ms);            // Motor Control
+// ControlSystem Motor(Kp,Ki,Kd,Ts_ms);            // Motor Control
 
 // Threads
-Thread ControlThread();
-Thread SafetyThread();
-Thread CANThread();
+Thread ControlThread(osPriorityNormal, 4096);
+// Thread SafetyThread();
+// Thread CANThread();
 
 /*===================================== Global  Variables =====================================*/
 // Structs
 RxStruct Inv1_data, Inv2_data;     // Structs for data received from each controller
 
-bool Error_State{0};     // Checks APPS, BSE and 
+// Flags
+bool Error_State{0};        // Checks APPS, BSE and 
+bool BSE_Flag{0};           // Flag counter for BSE
+uint8_t Apps_Flag{0};       // Flag counter for Apps
 
 int main()
 { /*====================================== INITIALIZATION ======================================*/
@@ -97,16 +84,13 @@ int main()
     DigitalOut BSPD_Start(BSPD_PIN,1);      // Start BSPD
 
     // Powertrain & motor control
+    ControlThread.start(OpenLoop);
 
-
-    /*=========================================== LOOP ===========================================*/
+/*=========================================== LOOP ===========================================*/
     while (true) {
-        /* does something?*/
         // ReadCAN();
-        Inv1_data = CAN_Motor.receive_from_inverter_1();      // Get data from Motor controller 1
-        Inv2_data = CAN_Motor.receive_from_inverter_2();      // Get data from Motor controller 2
-        CAN_Motor.Print_Datafield(1, Inv1_data);              // Print data
-        ThisThread::sleep_for(50ms);
+        // PlausibilityCheck();
+        ThisThread::sleep_for(30ms);
     }
 }
 
@@ -115,29 +99,44 @@ int main()
 /*========================================== POWERTRAIN ==========================================*/
 /* Gets data from the Inverters: Every 10 ms*/
 void ReadCAN(){
-    while(true){
+    // Motor CAN
     Inv1_data = CAN_Motor.receive_from_inverter_1();      // Get data from Motor controller 1
     Inv2_data = CAN_Motor.receive_from_inverter_2();      // Get data from Motor controller 2
-    CAN_Motor.Print_Datafields();                         // Print Datafields for both controllers
+    CAN_Motor.Print_Datafield(1, Inv1_data);              // Print data
+    // CAN_Motor.Print_Datafields();                         // Print Datafields for both controllers
 
-    ThisThread::sleep_for(50ms);
-    }
-
-
+    // General CAN
 
 }
 
-/* Open Loop Control: Every 1 ms*/
+/* Safety Check: Every 20 ms*/
+void PlausibilityCheck(){
+    /* Read all sensors*/
+    uint16_t Apps_1 = APPS_1.read_pedal();
+    uint16_t Apps_2 = APPS_2.read_pedal();
+    uint16_t Brake_val = BSE.read_pedal();
+
+    // Check for errors
+    Error_State = BSE_Error_check(Apps_1, Brake_val, BSE_Flag) || APPS_Error_check(Apps_1, Apps_2, &Apps_Flag) ;
+    // Error_State = Error_State || Temperature_Error_check();
+}
+
+
+/* Open Loop Control:Every 1 ms*/
 void OpenLoop(){
-    uint16_t Dc_Motor[2]{0};                                // Control Signal
-    uint16_t apps = APPS_1.read_pedal();                    // Acc. Pedal
-    uint16_t brake = BSE.read_pedal();                      // Break Pedal
-    // float Steering_dg = Steering_sensor.read_angle();       // Steering Wheel
+    uint16_t Dc_Motor[2]{0};    // Control Signal
+    uint16_t apps;              // Acc. Pedal
+    uint16_t brake;             // Brake Pedal
+    float Steering_dg;          // Steering Wheel
+    
+    float m1{0},m2{0};          // Debug 
+
 
     while(true){
-        // Sensor Data
+        // Read Sensor Data
         apps = APPS_1.read_pedal();
         brake = BSE.read_pedal();
+        Steering_dg = Steering_sensor.read_angle();
 
         // Open Loop without Differential        
         Dc_Motor[0]= apps;
@@ -145,13 +144,18 @@ void OpenLoop(){
 
         // Open Loop with Electronic Differential [Control]
         // OpenLoopDifferential(Steering_dg, apps, Dc_Motor);
-
+        
+        // Check for Errors
         Error_State =0;
         if (Error_State or brake >100){
             Dc_Motor[0] = 0;
             Dc_Motor[1] = 0;
         }
 
+        m1= float(Dc_Motor[0])/UINT16_MAX;      
+        m2= float(Dc_Motor[1])/UINT16_MAX;      
+        printf("\nMotor 1: %.2f%%  || Motor 2: %.2f%%", m1,m2);
+ 
         // Send data to Inverters 
         CAN_Motor.send_to_inverter_1(Dc_Motor[0], 0);     // Send control Signal to Controller 1
         CAN_Motor.send_to_inverter_2(Dc_Motor[1], 0);     // Send control Signal to Controller 2
@@ -159,32 +163,6 @@ void OpenLoop(){
 
 }
 
-/* Safety Check: Every 20 ms*/
-void PlausibilityCheck(){
-    uint16_t Apps_1 = APPS_1.read_pedal();
-    uint16_t Apps_2 = APPS_2.read_pedal();
-    uint16_t Brake_val = BSE.read_pedal();
-
-    while(true) {
-        /* Read all sensors*/
-        Apps_1    = APPS_1.read_pedal();
-        Apps_2    = APPS_2.read_pedal();
-        Brake_val = BSE.read_pedal();
-
-        // Check for errors
-        if( APPS_Error_check(Apps_1, Apps_2) ){
-            printf("APPS ERROR DETECTED");
-            Error_State = 1;
-        }
-    
-        if( BSE_Error_check(Apps_1, Brake_val) ){
-            printf("BSE ERROR DETECTED");
-            Error_State = 1;
-        }
-
-    }
-
-}
 
 
 
@@ -195,7 +173,7 @@ void PlausibilityCheck(){
 //     uint16_t Wm_setpoint[2]{0};        // Current motor Velocity in RPM
     
 //     uint16_t Apps         =  APPS_1.read_pedal();                   // Read Acc. Pedal
-//     uint16_t Brake_val    =  BSE.read_angle();                      // Read Brae Pedal
+//     uint16_t Brake_val    =  BSE.read_angle();                      // Read Brake Pedal
 //     float    Steering_dg  =  Steering_sensor.read_angle();          // Read Steering Wheel sensor
 
 //     while(true){
@@ -225,49 +203,4 @@ void PlausibilityCheck(){
 //     RPM_setpoint[1] = 1000;
 
 
-// }
-
-
-
-// /* Closed Loop Control: Every 1 ms*/
-// void Run_Control_dif(void const * args){
-//     uint16_t Dc_Motor[2]{0};           // DutyCycle [0 to 16b]
-//     uint16_t RPM_c[2]{0};              // Current motor Velocity in RPM
-    
-//     uint16_t Apps         =  APPS_1.read_pedal();                   // Read Acc. Pedal
-//     uint16_t Brake_val    =  BSE.read_angle();                      // Read Brae Pedal
-//     float    Steering_dg  =  Steering_sensor.read_angle();          // Read Steering Wheel sensor
-
-//     // Current Velocity value [RPM]
-//     RPM_c[0] = Inv1_data.RPM;
-//     RPM_c[1] = Inv2_data.RPM;
-
-//     // Control System
-//     Motor.DifferentialControl(Steering_dg, Apps, RPM_c, Dc_Motor);
-
-//     // If Break
-//     if( BSE.get_circuit_error() || BSE_Error_check(Apps, Brake_val) ){
-//         printf("CIRCUIT ERROR DETECTED");
-//         Dc_Motor[0]= 0;
-//         Dc_Motor[1]= 0;
-//     }
-    
-//     // Send data to Inverters 
-//     CAN_Motor.send_to_inverter_1(Dc_Motor[0], 0);     // Send control Signal to Controller 1
-//     CAN_Motor.send_to_inverter_2(Dc_Motor[1], 0);     // Send control Signal to Controller 2
-// }
-
-
-
-
-//     /* If Error is Detected*/
-//     if(Error_State){
-//         Motor.shutdown = true;                  // Shutsdown Both motors
-//         CAN_Motor.send_to_inverter_1(0, 0);     // Send control Signal to Controller 1
-//         CAN_Motor.send_to_inverter_2(0, 0);     // Send control Signal to Controller 2
-    
-//     } else{
-//         Motor.shutdown = false;
-
-//     }
 // }

@@ -91,6 +91,48 @@ void ControlSystem::DifferentialControl(float Steering, uint16_t apps, uint16_t 
 }
 
 
+
+/* Closed Loop Control */
+uint16_t ControlSystem::control(float vel, float setpoint){
+    uint16_t Dc_16b;
+    int Ts = Ts_ms*1000;
+    //Current Error:
+    ek[0]= setpoint-vel;
+
+    // PID Controller [Backwards Euler]
+    uk[0] = Kp*(ek[0] - ek[1] ) + Ki*Ts*ek[0] + Kd*(ek[0] - 2*ek[1] + ek[2])  + uk[1];
+
+    // Saturation
+    if(uk[0]>1){
+        uk[0]=1;
+    }
+
+    if(uk[0]<0){
+        uk[0]=0;
+    }
+
+    // Update Variables
+    uk[2]=uk[1];
+    uk[1]=uk[0];
+
+    ek[2]=ek[1];
+    ek[1]=ek[0];
+
+
+    // PID Controller [Bilinear Transform]
+
+
+    // Return the Dutycycle as 16b uint
+    Dc_16b= UINT16_MAX*uk[0];
+    
+    if(shutdown){
+        Dc_16b= 0;
+    }
+
+
+    return Dc_16b;
+}
+
 /*========================================= ELECTRONIC DIFFERENTIAL =========================================*/
 // Calculates the Velocity [in RPM] of each wheel during a turn, W1 = [LEFT WHEEL] || W2 = [RIGHT WHEEL]
 void CalcDifferential(float Steering_dg, float Acc_pedal, uint16_t RPM_dif[]){
@@ -110,7 +152,7 @@ void CalcDifferential(float Steering_dg, float Acc_pedal, uint16_t RPM_dif[]){
     Ack_rad=(0.14 * Steering_dg)* PI/180;
 
     // Velocity Variation during turn
-    del_W= KC * tan(Ack_rad);
+    del_W= K_DIF * tan(Ack_rad);
 
     // Calculate differential [in Rad/s] and turns into RPM (Note: there's a Implicit Type Conversion there)
     RPM_W1= Wv_rpm * ( 1 + del_W);
@@ -163,7 +205,7 @@ void ElectronicDifferential(float Steering_dg, float apps, float Wc_Motor[]){
     Ack_rad=(0.14 * Steering_dg)* PI/180;
 
     // Velocity Variation during turn
-    del_W= KC * tan(Ack_rad);
+    del_W= K_DIF * tan(Ack_rad);
 
     // Calculate differential [in Rad/s] and turns into RPM (Note: there's a Implicit Type Conversion there)
     RPM_W1= Wv_rpm * ( 1 + del_W);
@@ -193,55 +235,6 @@ void ElectronicDifferential(float Steering_dg, float apps, float Wc_Motor[]){
     
 }
 
-
-
-
-
-/* Closed Loop Control */
-uint16_t ControlSystem::control(float vel, float setpoint){
-    uint16_t Dc_16b;
-    int Ts = Ts_ms*1000;
-    //Current Error:
-    ek[0]= setpoint-vel;
-
-    // PID Controller [Backwards Euler]
-    uk[0] = Kp*(ek[0] - ek[1] ) + Ki*Ts*ek[0] + Kd*(ek[0] - 2*ek[1] + ek[2])  + uk[1];
-
-    // Saturation
-    if(uk[0]>1){
-        uk[0]=1;
-    }
-
-    if(uk[0]<0){
-        uk[0]=0;
-    }
-
-    // Update Variables
-    uk[2]=uk[1];
-    uk[1]=uk[0];
-
-    ek[2]=ek[1];
-    ek[1]=ek[0];
-
-
-    // PID Controller [Bilinear Transform]
-
-
-    // Return the Dutycycle as 16b uint
-    Dc_16b= UINT16_MAX*uk[0];
-    
-    if(shutdown){
-        Dc_16b= 0;
-    }
-
-
-    return Dc_16b;
-}
-
-
-
-
-
 /**/
 void OpenLoopDifferential(float Steering_dg, uint16_t Apps, uint16_t Dc_Motor[]){
     int64_t RPM_W1,RPM_W2, Wv_rpm;  // Aux Variables
@@ -260,7 +253,7 @@ void OpenLoopDifferential(float Steering_dg, uint16_t Apps, uint16_t Dc_Motor[])
     Ack_rad=(0.14 * Steering_dg)* PI/180;
 
     // Velocity Variation during turn
-    del_W= KC * tan(Ack_rad);
+    del_W= K_DIF * tan(Ack_rad);
 
     // Calculate differential [in Rad/s] and turns into RPM (Note: there's a Implicit Type Conversion there)
     RPM_W1= Wv_rpm * ( 1 + del_W);
@@ -292,53 +285,6 @@ void OpenLoopDifferential(float Steering_dg, uint16_t Apps, uint16_t Dc_Motor[])
 
 
 
-
-
-/*================================== ACCELERATION PEDAL PLAUSIBILITY CHECK ==================================*/
-// Every 10ms, checks if there's a discrepancy bigger than 10% lastting more then 100 ms
-bool APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2){
-    bool AppsError_flag,Error_APPS;
-    uint8_t Error_Counter{0};
-
-    // Checks 10% discrepancy
-    if ( abs(Apps_1 - Apps_2) > (0.1 * max(Apps_1, Apps_2)) ){
-        // if there's discrepancy, adds in counter
-        Error_Counter++;
-    }
-    else { 
-        Error_Counter= 0;      //if error ceased resets counter
-    }
-    
-    // If Implausibility lasts 4 iterations (80ms - 100 ms), theres error
-    if(Error_Counter >=4){
-        return 1;
-        if(Error_Counter > 4)
-        { Error_Counter =4; }
-    }
-    else{
-        return 0;
-    }
-
-}
-
-/*====================================== BRAKE PEDAL PLAUSIBILITY CHECK ======================================*/
-// Checks if the Accel. and Brake Were both pressed at the same time
-bool BSE_Error_check(uint16_t Apps_val, uint16_t Brake_val){    
-    bool Error_BPPC{0};
-
-    //If APPS >= 25% of pedal travel and Brake is pressed, stops the car 
-    if ( (Apps_val >= 0.25*PEDAL_MAX) && (Brake_val >= 0.02*PEDAL_MAX) ){
-        Error_BPPC = 1;
-        printf("BSE: ERROR DETECTED");
-    }
-
-    // Error only Stops if APPS goes below 5% of pedal travel
-    if(Apps_val < 0.05*PEDAL_MAX){
-        Error_BPPC = 0;
-    }
-
-    return Error_BPPC;
-}
 
 
 /*====================================== MOTOR/MOTOR CONTROLLER ERROR CHECK ======================================*/
