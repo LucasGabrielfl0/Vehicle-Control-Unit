@@ -14,8 +14,8 @@ bool APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2, uint8_t* Error_Count){
         Error_Counter= 0;      //if error ceased resets counter
     }
     
-    // If Implausibility lasts 4 iterations (80ms - 100 ms response time), Sets Error
-    if(Error_Counter >=4){
+    // If Implausibility lasts 5 iterations (100ms - 120 ms response time), Sets Error
+    if(Error_Counter >=5){
         printf("APPS ERROR DETECTED");
         Error_Counter =4;
         return 1;
@@ -28,7 +28,9 @@ bool APPS_Error_check(uint16_t Apps_1, uint16_t Apps_2, uint8_t* Error_Count){
 
 /*====================================== BRAKE PEDAL PLAUSIBILITY CHECK ======================================*/
 // Checks if the Accel. and Brake Were both pressed at the same time
-bool BSE_Error_check(uint16_t Apps_val, uint16_t Brake_val, bool Error_BPPC){    
+bool BSE_Error_check(uint16_t Apps_val, uint16_t Brake_val, uint8_t *flag_BPPC){    
+    bool Error_BPPC = *flag_BPPC;
+
     //If APPS >= 25% of pedal travel and Brake is pressed, stops the car 
     if ( (Apps_val >= 0.25*PEDAL_MAX) && (Brake_val >= 0.02*PEDAL_MAX) ){
         Error_BPPC = 1;
@@ -42,6 +44,8 @@ bool BSE_Error_check(uint16_t Apps_val, uint16_t Brake_val, bool Error_BPPC){
     if(Error_BPPC){
         printf("BSE: ERROR IN PROGRESS");
     }
+    
+    *flag_BPPC = Error_BPPC;
     return Error_BPPC;
 }
 
@@ -51,7 +55,7 @@ bool BSE_Error_check(uint16_t Apps_val, uint16_t Brake_val, bool Error_BPPC){
 
 /*================================== Angle Sensors ==================================*/
 // Constructors
-inline angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max)
+angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_max, float _angle_min,float _angle_max)
     :ADC_Pin{adc_Pin,VREF_ADC},
      Volt_min{_volt_min},
      Volt_max{_volt_max},
@@ -61,7 +65,7 @@ inline angle_sensor::angle_sensor(PinName adc_Pin, float _volt_min,float _volt_m
 
 // Methods
 /* Reads the ADC pin and returns the angle value in degrees */ 
-inline float angle_sensor:: read_angle(){
+float angle_sensor:: read_angle(){
     float New_ADC = ADC_Pin.read_voltage();
 
     /* Tests if ADC voltage read is within the sensor's bounds [short or open circuit] */
@@ -98,12 +102,12 @@ void angle_sensor:: Voltage_print(){
 
 /*====================================== Pedal Sensors ======================================*/
 // Constructors
-inline PedalSensor::PedalSensor(PinName adc_Pin, float _volt_min, float _volt_max)
+PedalSensor::PedalSensor(PinName adc_Pin, float _volt_min, float _volt_max)
     :angle_sensor{adc_Pin, _volt_min, _volt_max, 0, 100}{}
 
 // Methods
 /* Reads the Pedal travel [0% = 0 | 100% = 16b] */
-inline uint16_t PedalSensor:: read_pedal(){
+uint16_t PedalSensor:: read_pedal(){
     float New_ADC = ADC_Pin.read_voltage();
 
     if(New_ADC<Volt_min || New_ADC>Volt_max){
@@ -131,7 +135,7 @@ void PedalSensor:: Voltage_print(){
 
 /*================================== Steering Wheel Sensor ==================================*/
 // Constructos
-inline SteeringSensor::SteeringSensor(PinName adc_Pin, float _volt_min, float _volt_max)
+SteeringSensor::SteeringSensor(PinName adc_Pin, float _volt_min, float _volt_max)
     :angle_sensor{adc_Pin, _volt_min, _volt_max, Vol_ang_min, Vol_ang_max}{}
 
 

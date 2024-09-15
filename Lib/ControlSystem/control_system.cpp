@@ -287,19 +287,7 @@ void OpenLoopDifferential(float Steering_dg, uint16_t Apps, uint16_t Dc_Motor[])
 
 
 
-/*====================================== MOTOR/MOTOR CONTROLLER ERROR CHECK ======================================*/
-// Checks if the motor sent 
-// void Motor_Error_Check(RxStruct Inverter_1, RxStruct Inverter_2){
-//     bool Error_Motor{0};
 
-//     int16_t Tm_1 = Inverter_1.Temp_motor; 
-//     int16_t Tm_2 = Inverter_2.Temp_motor; 
-//     int16_t Tc_1 = Inverter_1.Temp_Controller;
-//     int16_t Tc_2 = Inverter_2.Temp_Controller;
-    
-//     // if Temperature is above limit, shuts the car down
-//     Error_Motor = ( (Tm_1> MAX_TM) || (Tm_2> MAX_TM) || (Tc_1> MAX_TC) || (Tc_2> MAX_TC) );
-// }
 
 
 
@@ -332,7 +320,7 @@ void OpenLoopDifferential(float Steering_dg, uint16_t Apps, uint16_t Dc_Motor[])
 //         printf("#============================================================================#\n");
 //     }
 
-inline void print_errors(bool ERROR_State,bool Error_APPS,bool Error_BPPC, bool Error_Motor){
+void print_errors(bool ERROR_State,bool Error_APPS,bool Error_BPPC, bool Error_Motor){
     printf("\nState:  %d || ",ERROR_State);
     printf("Error_APPS:  %d || Error_BPPC:  %d || Error_Motor:  %d\n",Error_APPS, Error_BPPC, Error_Motor);
     }

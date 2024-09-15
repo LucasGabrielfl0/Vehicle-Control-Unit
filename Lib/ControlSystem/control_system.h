@@ -13,13 +13,7 @@
 
 #include "mbed.h"
 #include <cstdint>
-#include <time.h>
-// #include "adc_sensors.h"
-// #include "can_communication.h"
 
-/*==================================== SAFETY PARAMETERS ====================================*/
-#define MAX_TC      40                          // Motor Controller [inverter] Max temperature [°C]
-#define MAX_TM      40                          // Motor Max temperature [°C]
 
 /*==================================== CONTROL PARAMETERS ====================================*/
 #define PI  3.14159265358979323846                  // PI constant 
@@ -35,7 +29,7 @@ const float K_DIF =  TRACK_WIDTH / ( 2*WHEELBASE );    // [adm] constant for Dif
 /*======================================== Aux Functions ========================================*/
 void ElectronicDifferential(float Steering_dg , float apps,float Wc_Motor[]);       // Calc Electronic Differential
 void OpenLoopDifferential(float Steering_dg, uint16_t Apps, uint16_t Dc_Motor[]);   // Diff in Open Loop
-void CalcDifferential(float Steering_dg, uint16_t Acc_pedal, uint16_t RPM_dif[]);
+void CalcDifferential(float Steering_dg, float Acc_pedal, uint16_t RPM_dif[]);
 
 /*======================================== CLASS ========================================*/
 class ControlSystem {
@@ -78,6 +72,5 @@ class ControlSystem {
 };
 
 // void Temp_Error_Check(RxStruct Inverter_1, RxStruct Inverter_2);       //
-
 
 #endif

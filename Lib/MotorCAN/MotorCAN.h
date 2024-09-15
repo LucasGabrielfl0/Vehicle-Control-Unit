@@ -1,20 +1,20 @@
-/***
- * Capibarib E-racing
- * Federal University of Pernambuco (UFPE)
- * Group Area: Powertrain
+// /***
+//  * Capibarib E-racing
+//  * Federal University of Pernambuco (UFPE)
+//  * Group Area: Powertrain
 
- * This file contains methods used for the car's embedded system's communication
- * The datafield follows the standard for CAN 2.0 communication as described in the
- * Plettenberg documentation (for MST motor controllers)
- ***/
-#ifndef _CAN_COMMUNICATION_H_
-#define _CAN_COMMUNICATION_H_
+//  * This file contains methods used for the car's embedded system's communication
+//  * The datafield follows the standard for CAN 2.0 communication as described in the
+//  * Plettenberg documentation (for MST motor controllers)
+//  ***/
+#ifndef _MOTOR_CAN_H_
+#define _MOTOR_CAN_H_
 
 #include "mbed.h"
 #include "CAN.h"
 #include <cstdint>
 
-/*================================== COMMUNICATION PARAMETERS ==================================*/
+// /*================================== COMMUNICATION PARAMETERS ==================================*/
 #define INVERSOR_TX_ID      0x100
 #define INVERSOR_RX_ID      0x101
 
@@ -32,6 +32,10 @@
 /*==================================== SAFETY PARAMETERS ====================================*/
 #define MAX_CURRENT_LIMIT       38          // Max Phase Current in the motor [A]
 #define MAX_RPM_LIMIT           9000        // Max Velocity of the motor [RPM] 
+
+/*==================================== SAFETY PARAMETERS ====================================*/
+#define MAX_TEMP_CONTROLLER      80                          // Motor Controller Max temperature [°C]
+#define MAX_TEMP_MOTOR           80                          // Motor Max temperature [°C]
 
 
 
@@ -57,6 +61,9 @@ struct TxStruct{
     bool        isBreak{0};         //1= break, 0= Throttle
     bool        isReverse{0};       //1= Reverse, 0= Forward
 };
+
+// Aux 
+bool Temperature_Shutdown(RxStruct Controller_1, RxStruct Controller_2);
 
 /*================================== CLASS ==================================*/
 class MotorCAN:public CAN{
@@ -90,4 +97,6 @@ class MotorCAN:public CAN{
     public:
     MotorCAN(PinName _can_pin_rx, PinName _can_pin_tx, uint32_t _can_frequency);
 };
+
+
 #endif

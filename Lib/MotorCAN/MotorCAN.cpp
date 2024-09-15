@@ -1,50 +1,50 @@
-#include "can_communication.h"
+#include "MotorCAN.h"
 
 /*================================== Constructors ==================================*/
-inline MotorCAN::MotorCAN(PinName _can_pin_rx, PinName _can_pin_tx, uint32_t _can_frequency)
+MotorCAN::MotorCAN(PinName _can_pin_rx, PinName _can_pin_tx, uint32_t _can_frequency)
 :CAN(_can_pin_rx,
      _can_pin_tx,
     _can_frequency) {}
 
 /*================================== METHODS ==================================*/
 /* */
-inline void MotorCAN:: set_CAN(){
+void MotorCAN:: set_CAN(){
     mode(CAN::Normal);
     filter(0, 0, CANStandard);
 }
 
 /* Resets CAN chanel */
-inline void MotorCAN:: reset_can() {  
+void MotorCAN:: reset_can() {  
     reset();
     mode(CAN::Normal);
     filter(0, 0, CANStandard); // reconfigurar o filtro para receber todas as mensagens
 }
 
 /* Tests if CAN can send messages (Creates empy CAN message and tests if it was sent) */
-inline bool MotorCAN:: baud_test(){
+bool MotorCAN:: baud_test(){
     CANMessage msg;
     return write(msg);    
 }
 
 /* Tests if CAN can read messages */
-inline bool MotorCAN::is_can_active(){
+bool MotorCAN::is_can_active(){
     CANMessage msg;
     return read(msg); // tente ler uma mensagem
 }
 
 /*==========================================  SEND DATA ==========================================*/
 /* Sends Data to Motor Controller 1 */
-inline void MotorCAN:: send_to_inverter_1(uint16_t DC_pwm_1, bool IsBreak){
+void MotorCAN:: send_to_inverter_1(uint16_t DC_pwm_1, bool IsBreak){
     send_to_inverter(INVERSOR_TX_ID, DC_pwm_1, IsBreak);
 }
 
 /* Sends Data to Motor Controller 2 */
-inline void MotorCAN:: send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak){
+void MotorCAN:: send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak){
     send_to_inverter(INVERSOR_TX_ID_2, DC_pwm_2, IsBreak);
 }
 
 /* Sends Data to Motor Controller */
-inline void MotorCAN:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, bool IsBreak ){    
+void MotorCAN:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, bool IsBreak ){    
     IsBreak=0; // DON'T use Break while using power source (only with batteries).
     
     CANMessage inverter_tx_msg;     // Creates Can message
@@ -76,13 +76,13 @@ inline void MotorCAN:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, 
 
 /*==========================================  RECEIVE DATA ==========================================*/
 /* Receives Data from Motor Controller 1 */
-inline RxStruct MotorCAN:: receive_from_inverter_1(){
+RxStruct MotorCAN:: receive_from_inverter_1(){
     RxStruct Datafield_1 = receive_from_inverter(INVERSOR_RX_ID);
     return Datafield_1;
 }
 
 /* Receives Data from Motor Controller 2 */
-inline RxStruct MotorCAN:: receive_from_inverter_2(){
+RxStruct MotorCAN:: receive_from_inverter_2(){
     RxStruct Datafield_2 = receive_from_inverter(INVERSOR_RX_ID_2);
     return Datafield_2;
 }
@@ -127,6 +127,45 @@ RxStruct MotorCAN:: receive_from_inverter(unsigned int Inverter_Id){
     return Datafield;
 }
 
+/*====================================== MOTOR/MOTOR CONTROLLER ERROR CHECK ======================================*/
+// Checks if the motor sent 
+bool Temperature_Shutdown(RxStruct Controller_1, RxStruct Controller_2){
+    bool Temperature_Shutdown{0};
+
+    int16_t Tm_1 = Controller_1.Temp_motor; 
+    int16_t Tm_2 = Controller_1.Temp_motor; 
+    int16_t Tc_1 = Controller_2.Temp_Controller;
+    int16_t Tc_2 = Controller_2.Temp_Controller;
+    
+    // if Temperature is above limit, shuts the car down
+    Temperature_Shutdown = (Tm_1> MAX_TEMP_MOTOR) || (Tm_2> MAX_TEMP_MOTOR);
+    Temperature_Shutdown = Temperature_Shutdown || (Tc_1> MAX_TEMP_CONTROLLER) || (Tc_2> MAX_TEMP_CONTROLLER);
+    
+    if(Temperature_Shutdown){
+        printf("[Powertrain]: TEMPERATURE SHUTDOWN ACTIVATED");
+    }
+    return Temperature_Shutdown;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /*==========================================  PRINT DATA ==========================================*/
 void MotorCAN::Print_Datafields(){
@@ -135,7 +174,7 @@ void MotorCAN::Print_Datafields(){
     
 }
 
-void Print_Datafield(int Num, RxStruct Inv){
+void MotorCAN::Print_Datafield(int Num, RxStruct Inv){
     printf("\r\n\t[CAN] Inverter %d: Volt=%.1f V, T_Ctrl= %d°C ,T_Motor = %d°C , RPM = %d, PWM = %.2f (%.2f %%), Ic= %d A",
     Num, Inv.Supply_Voltage ,Inv.Temp_Controller ,
          Inv.Temp_motor    ,Inv.RPM ,
