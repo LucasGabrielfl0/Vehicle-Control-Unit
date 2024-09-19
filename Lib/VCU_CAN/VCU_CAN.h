@@ -10,17 +10,24 @@
 #ifndef _VCU_CAN_H_
 #define _VCU_CAN_H_
 
+#include "mbed.h"
+#include "CAN.h"
+
 // CAN ADRESS
-#define ESP32_CAN_ADdRESS       1
-#define BMS_CAN_ADDRESS         1
-#define VCU_CAN_ADDRESS         1
+#define ESP32_CAN_ADDRESS       1
+#define BMS_CAN_ADDRESS         2
+#define VCU_CAN_ADDRESS         3
 
 // Aux Functions
 void receive_from_BMS();        // Get data from BMS via CAN
 void send_to_ESP();             // Send data to ESP32 via CAN
-
+void VCU_CAN_Received();
 
 // Structs
+
+
+
+
 
 
 

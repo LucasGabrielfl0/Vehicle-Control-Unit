@@ -15,11 +15,11 @@
 #include <cstdint>
 
 // /*================================== COMMUNICATION PARAMETERS ==================================*/
-#define INVERSOR_TX_ID      0x100
-#define INVERSOR_RX_ID      0x101
+#define CONTROLLER_TX_ID      0x100
+#define CONTROLLER_RX_ID      0x101
 
-#define INVERSOR_TX_ID_2    0x200
-#define INVERSOR_RX_ID_2    0x201
+#define CONTROLLER_TX_ID_2    0x200
+#define CONTROLLER_RX_ID_2    0x201
 
 #define MAX_CAN_DATA_SIZE   8
 #define MOTOR_POLE_PAIRS    15          //Number of Pole Pairs in the Motor
@@ -78,17 +78,22 @@ class MotorCAN:public CAN{
     void reset_can();
     bool baud_test();
     bool is_can_active();
-    
+    void receive();
     //Send data to both motor Controllers
-    void send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm_1, bool IsBreak );
-    void send_to_inverter_1(uint16_t DC_pwm_1, bool IsBreak);
-    void send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak);
-
+    void send_to_controller(unsigned int Motor_Id, uint16_t DC_pwm_1);
+    void send_to_controller_1(uint16_t DC_pwm_1, bool IsBreak);
+    void send_to_controller_2(uint16_t DC_pwm_2, bool IsBreak);
+    void attach2(RxStruct Controller_Data_1, RxStruct Controller_Data_2);
     // Receive data from both motor controllers
     RxStruct receive_from_inverter(unsigned int Inverter_Id);
     RxStruct receive_from_inverter_1();
     RxStruct receive_from_inverter_2();
     
+    RxStruct receive_from_controller(unsigned int Inverter_Id);
+    RxStruct receive_from_controller_1();
+    RxStruct receive_from_controller_2();
+    
+
     //print received data
     void Print_Datafields();
     void Print_Datafield(int Num, RxStruct Inv);

@@ -34,18 +34,17 @@ bool MotorCAN::is_can_active(){
 
 /*==========================================  SEND DATA ==========================================*/
 /* Sends Data to Motor Controller 1 */
-void MotorCAN:: send_to_inverter_1(uint16_t DC_pwm_1, bool IsBreak){
-    send_to_inverter(INVERSOR_TX_ID, DC_pwm_1, IsBreak);
+void MotorCAN:: send_to_controller_1(uint16_t DC_pwm_1, bool IsBreak){
+    send_to_controller(CONTROLLER_TX_ID, DC_pwm_1);
 }
 
 /* Sends Data to Motor Controller 2 */
-void MotorCAN:: send_to_inverter_2(uint16_t DC_pwm_2, bool IsBreak){
-    send_to_inverter(INVERSOR_TX_ID_2, DC_pwm_2, IsBreak);
+void MotorCAN:: send_to_controller_2(uint16_t DC_pwm_2, bool IsBreak){
+    send_to_controller(CONTROLLER_TX_ID_2, DC_pwm_2);
 }
 
 /* Sends Data to Motor Controller */
-void MotorCAN:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, bool IsBreak ){    
-    IsBreak=0; // DON'T use Break while using power source (only with batteries).
+void MotorCAN:: send_to_controller(unsigned int Motor_Id, uint16_t DC_pwm){    
     
     CANMessage inverter_tx_msg;     // Creates Can message
     inverter_tx_msg.id= Motor_Id;   // Id
@@ -77,13 +76,13 @@ void MotorCAN:: send_to_inverter(unsigned int Motor_Id, uint16_t DC_pwm, bool Is
 /*==========================================  RECEIVE DATA ==========================================*/
 /* Receives Data from Motor Controller 1 */
 RxStruct MotorCAN:: receive_from_inverter_1(){
-    RxStruct Datafield_1 = receive_from_inverter(INVERSOR_RX_ID);
+    RxStruct Datafield_1 = receive_from_inverter(CONTROLLER_RX_ID);
     return Datafield_1;
 }
 
 /* Receives Data from Motor Controller 2 */
 RxStruct MotorCAN:: receive_from_inverter_2(){
-    RxStruct Datafield_2 = receive_from_inverter(INVERSOR_RX_ID_2);
+    RxStruct Datafield_2 = receive_from_inverter(CONTROLLER_RX_ID_2);
     return Datafield_2;
 }
 
@@ -126,6 +125,56 @@ RxStruct MotorCAN:: receive_from_inverter(unsigned int Inverter_Id){
     Datafield_inv1 =Datafield;
     return Datafield;
 }
+
+
+void receive_1(){}
+void MotorCAN::attach2(RxStruct Controller_Data_1, RxStruct Controller_Data_2){
+    attach(receive_1,CAN::RxIrq);
+}
+
+/* Receives Data from Motor Controller */
+void MotorCAN::receive(){
+    RxStruct Datafield;
+    RxStruct Controller_Data_1;
+    RxStruct Controller_Data_2;
+    //Aux variables
+    int Voltage_Hb; //voltage High byte
+    int Voltage_int;
+
+    CANMessage Controller_rx_msg;
+    Controller_rx_msg.len = 8;
+    if( read(Controller_rx_msg) ){
+        Datafield.Msg_Counter = Controller_rx_msg.data[0] & 0xF;
+        
+        Voltage_Hb = Controller_rx_msg.data[0] >> 4;
+        Voltage_int = (Voltage_Hb<<8) | Controller_rx_msg.data[1];
+        Datafield.Supply_Voltage = Voltage_int/10.0f;
+        Datafield.Temp_Controller = Controller_rx_msg.data[2]-100;      //Range[0-255],Temp Range [-100°C to 155°C]
+        Datafield.Temp_motor = Controller_rx_msg.data[3]-100;           //Range[0-255],Temp Range [-100°C to 155°C]
+        
+        Datafield.RPM= (Controller_rx_msg.data[5]<< 8) | Controller_rx_msg.data[4] ;
+        
+        Datafield.PWM_read=(Controller_rx_msg.data[6]/255.0f)*100;
+        Datafield.Current = Controller_rx_msg.data[7];            
+            }
+    else{
+        printf("Fail to stablish CAN connection. Reseting...\n");
+        reset_can(); 
+    }
+
+    if(Controller_rx_msg.id == CONTROLLER_RX_ID) {
+
+    }
+    if(Controller_rx_msg.id == CONTROLLER_RX_ID_2) {
+    }
+}
+
+
+
+
+
+
+
 
 /*====================================== MOTOR/MOTOR CONTROLLER ERROR CHECK ======================================*/
 // Checks if the motor sent 

@@ -42,7 +42,7 @@ bool BSE_Error_check(uint16_t Apps_val, uint16_t Brake_val, uint8_t *flag_BPPC){
     }
 
     if(Error_BPPC){
-        printf("BSE: ERROR IN PROGRESS");
+        printf("\nBSE: ERROR IN PROGRESS");
     }
     
     *flag_BPPC = Error_BPPC;
@@ -129,7 +129,7 @@ void PedalSensor:: Voltage_print(){
     double Percentage=(double(Voltage_16bit)/65535)*100;
 
     printf("\n[VCU] ADC: Voltage_Read[16bit]: %d , Voltage[V]: %.2f V ",Voltage_16bit, ADC_Pin.read_voltage() );    
-    printf("\n Power [%%]: %.2f %%\n",Percentage);
+    printf("\nPower [%%]: %.2f %%\n",Percentage);
 }
 
 
