@@ -1,4 +1,4 @@
-# Integrated-VCU
+# Vehicle Control Unit
 Integration of the VCU, the car's safety sensors(APPS, BSE, ...), the Electronic differential and CAN 2.0
 
 ## Getting Started!
